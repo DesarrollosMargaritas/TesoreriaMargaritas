@@ -1,0 +1,16 @@
+﻿@using TesoreriaMargaritas.Components.Layout
+
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <!-- Cuando encuentra la ruta, usa el MainLayout -->
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <!-- Si no encuentra la ruta, muestra esto -->
+        <PageTitle>No encontrado</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p role="alert">Lo siento, no hay nada en esta dirección.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

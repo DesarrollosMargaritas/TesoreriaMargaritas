@@ -1,0 +1,333 @@
+﻿@page "/operaciones/salidas"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using TesoreriaMargaritas.Models
+@using TesoreriaMargaritas.Services
+@using System.Security.Claims
+@using System.Globalization
+@attribute [Authorize(Roles = "Tesorero, Administrador")]
+@rendermode RenderMode.InteractiveServer
+@inject TesoreriaService TesoreriaService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Registro de Salidas</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="bi bi-cart-x text-danger"></i> Registro de Gastos y Salidas</h2>
+        <a href="/tesorero" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Panel
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Formulario -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-danger mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Nuevo Egreso</h5>
+                </div>
+                <div class="card-body">
+                    @if (mostrarExito)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show">
+                            <i class="bi bi-check-circle"></i> Gasto <strong>@nuevoGasto.Prefijo - @nuevoGasto.Consecutivo</strong> guardado.
+                            <button type="button" class="btn-close" @onclick="() => mostrarExito = false"></button>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle"></i> @mensajeError
+                        </div>
+                    }
+
+                    <EditForm Model="@nuevoGasto" OnValidSubmit="GuardarGasto" FormName="FormGasto">
+                        <DataAnnotationsValidator />
+
+                        <!-- 1. CONCEPTO -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Concepto</label>
+                            <InputSelect Value="@nuevoGasto.Concepto" ValueExpression="@(() => nuevoGasto.Concepto)" ValueChanged="@((string s) => CambioConcepto(s))" class="form-select">
+                                <option value="">-- Seleccione Tipo --</option>
+                                <option value="Gasto">Gasto (Interno)</option>
+                                <option value="Facturas">Facturas (Proveedores)</option>
+                                <option value="Simplificados">Simplificados (Proveedores)</option>
+                                <option value="Nominas">Nóminas (Vendedores)</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => nuevoGasto.Concepto)" />
+                        </div>
+
+                        <!-- 2. BENEFICIARIO (Dinámico) -->
+                        <div class="mb-3">
+                            <label class="form-label">Beneficiario (@labelBeneficiario)</label>
+
+                            @if (esBeneficiarioLibre)
+                            {
+                                <InputText @bind-Value="nuevoGasto.Beneficiario" class="form-control text-uppercase" placeholder="NOMBRE PERSONA / EMPRESA" />
+                            }
+                            else
+                            {
+                                <!-- Usamos Datalist para permitir búsqueda y selección -->
+                                <input list="listaBeneficiarios" @bind="nuevoGasto.Beneficiario" class="form-control" placeholder="Escriba para buscar..." />
+                                <datalist id="listaBeneficiarios">
+                                    @foreach (var item in listaOpcionesBeneficiarios)
+                                    {
+                                        <option value="@item"></option>
+                                    }
+                                </datalist>
+                            }
+                            <ValidationMessage For="@(() => nuevoGasto.Beneficiario)" />
+                        </div>
+
+                        <div class="row">
+                            <!-- 3. PREFIJO (Auto o Manual) -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Prefijo</label>
+                                <InputText @bind-Value="nuevoGasto.Prefijo" class="form-control text-uppercase" disabled="@esPrefijoFijo" />
+                            </div>
+
+                            <!-- 4. CONSECUTIVO (Auto o Manual) -->
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Consecutivo</label>
+                                @if (esConsecutivoManual)
+                                {
+                                    <InputNumber @bind-Value="nuevoGasto.Consecutivo" class="form-control" />
+                                }
+                                else
+                                {
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="Automático" disabled />
+                                        <span class="input-group-text"><i class="bi bi-gear-wide-connected"></i></span>
+                                    </div>
+                                    <small class="text-muted">Se asignará al guardar</small>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- 5. MONTO -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Monto ($)</label>
+                            <InputText @bind-Value="MontoConFormato" class="form-control fw-bold text-end fs-5" placeholder="$ 0" />
+                            <ValidationMessage For="@(() => nuevoGasto.Monto)" />
+                        </div>
+
+                        <!-- 6. OBSERVACIONES -->
+                        <div class="mb-3">
+                            <label class="form-label">Observaciones</label>
+                            <InputTextArea @bind-Value="nuevoGasto.Observaciones" class="form-control" rows="2" />
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="bi bi-save"></i> Registrar Salida
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0 text-secondary">Historial de Salidas</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Ref</th>
+                                    <th>Concepto</th>
+                                    <th>Beneficiario</th>
+                                    <th class="text-end">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (listaGastos == null)
+                                {
+                                    <tr><td colspan="5" class="text-center p-3">Cargando...</td></tr>
+                                }
+                                else if (!listaGastos.Any())
+                                {
+                                    <tr><td colspan="5" class="text-center p-3 text-muted">Sin registros.</td></tr>
+                                }
+                                else
+                                {
+                                    @foreach (var g in listaGastos)
+                                    {
+                                        <tr>
+                                            <td>@g.Fecha.ToString("dd/MM HH:mm")</td>
+                                            <td><span class="badge bg-light text-dark border">@g.Prefijo-@g.Consecutivo</span></td>
+                                            <td>@g.Concepto</td>
+                                            <td class="text-truncate" style="max-width: 150px;" title="@g.Beneficiario">@g.Beneficiario</td>
+                                            <td class="text-end fw-bold text-danger">@g.Monto.ToString("C0")</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Gasto nuevoGasto { get; set; } = new Gasto();
+
+    private List<Gasto>? listaGastos;
+    private List<string> listaOpcionesBeneficiarios = new(); // Se llena con Proveedores o Vendedores
+
+    // Estados visuales
+    private bool esBeneficiarioLibre = true;
+    private bool esPrefijoFijo = true;
+    private bool esConsecutivoManual = false;
+    private string labelBeneficiario = "Libre";
+
+    private bool mostrarExito = false;
+    private string? mensajeError;
+    private string usuarioIdLogueado = "";
+
+    // Propiedad para formato moneda
+    private string MontoConFormato
+    {
+        get => nuevoGasto.Monto == 0 ? "" : nuevoGasto.Monto.ToString("N0");
+        set
+        {
+            if (string.IsNullOrEmpty(value)) nuevoGasto.Monto = 0;
+            else
+            {
+                var nums = new string(value.Where(char.IsDigit).ToArray());
+                if (decimal.TryParse(nums, out decimal r)) nuevoGasto.Monto = r;
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            usuarioIdLogueado = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+            nuevoGasto.UsuarioId = usuarioIdLogueado;
+        }
+
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        listaGastos = await TesoreriaService.ObtenerGastosAsync();
+    }
+
+    // Lógica principal de cambio de estado según Concepto
+    private async void CambioConcepto(string concepto)
+    {
+        nuevoGasto.Concepto = concepto;
+        nuevoGasto.Beneficiario = ""; // Limpiar al cambiar
+        listaOpcionesBeneficiarios.Clear();
+
+        switch (concepto)
+        {
+            case "Gasto":
+                esBeneficiarioLibre = true;
+                labelBeneficiario = "Libre";
+                nuevoGasto.Prefijo = "GAP";
+                esPrefijoFijo = true;
+                esConsecutivoManual = false; // Auto
+                break;
+
+            case "Facturas":
+                esBeneficiarioLibre = false;
+                labelBeneficiario = "Buscar Proveedor";
+                await CargarProveedores();
+                nuevoGasto.Prefijo = ""; // Libre
+                esPrefijoFijo = false;
+                esConsecutivoManual = true; // Manual
+                break;
+
+            case "Simplificados":
+                esBeneficiarioLibre = false;
+                labelBeneficiario = "Buscar Proveedor";
+                await CargarProveedores();
+                nuevoGasto.Prefijo = "SMP";
+                esPrefijoFijo = true;
+                esConsecutivoManual = false; // Auto
+                break;
+
+            case "Nominas":
+                esBeneficiarioLibre = false;
+                labelBeneficiario = "Buscar Vendedor";
+                await CargarVendedores();
+                nuevoGasto.Prefijo = "NMP";
+                esPrefijoFijo = true;
+                esConsecutivoManual = false; // Auto
+                break;
+
+            default:
+                esBeneficiarioLibre = true;
+                break;
+        }
+        StateHasChanged();
+    }
+
+    private async Task CargarProveedores()
+    {
+        var proveedores = await TesoreriaService.ObtenerTodosProveedoresAsync();
+        listaOpcionesBeneficiarios = proveedores.Select(p => p.NOMPROVEEDOR).ToList();
+    }
+
+    private async Task CargarVendedores()
+    {
+        var vendedores = await TesoreriaService.ObtenerVendedoresAsync();
+        listaOpcionesBeneficiarios = vendedores.Select(v => v.NOMVENDEDOR).ToList();
+    }
+
+    private async Task GuardarGasto()
+    {
+        mensajeError = null;
+        mostrarExito = false;
+
+        if (string.IsNullOrEmpty(usuarioIdLogueado))
+        {
+            mensajeError = "Sesión inválida.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(nuevoGasto.Beneficiario))
+        {
+            mensajeError = "El Beneficiario es obligatorio.";
+            return;
+        }
+
+        // Convertir beneficiario a mayúsculas si es texto libre
+        if (esBeneficiarioLibre) nuevoGasto.Beneficiario = nuevoGasto.Beneficiario.ToUpper();
+        if (!esPrefijoFijo) nuevoGasto.Prefijo = nuevoGasto.Prefijo.ToUpper();
+
+        try
+        {
+            nuevoGasto.UsuarioId = usuarioIdLogueado;
+            nuevoGasto.Fecha = DateTime.Now;
+
+            await TesoreriaService.RegistrarGastoAsync(nuevoGasto);
+
+            mostrarExito = true;
+            // Reiniciar formulario manteniendo usuario
+            nuevoGasto = new Gasto { UsuarioId = usuarioIdLogueado };
+            // Resetear estados visuales
+            CambioConcepto("");
+
+            await CargarDatos();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar: {ex.Message}";
+        }
+    }
+}

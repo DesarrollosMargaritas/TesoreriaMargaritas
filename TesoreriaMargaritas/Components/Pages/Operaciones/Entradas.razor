@@ -1,0 +1,239 @@
+﻿@page "/operaciones/entradas"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using TesoreriaMargaritas.Models
+@using TesoreriaMargaritas.Services
+@using System.Security.Claims
+@using System.Globalization
+@attribute [Authorize(Roles = "Tesorero, Administrador")]
+@rendermode RenderMode.InteractiveServer
+@inject TesoreriaService TesoreriaService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Registro de Entradas</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="bi bi-graph-up-arrow text-success"></i> Entradas de Dinero</h2>
+        <a href="/tesorero" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Panel
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Formulario de Registro -->
+        <div class="col-md-4">
+            <div class="card shadow-sm border-success mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Nueva Entrada</h5>
+                </div>
+                <div class="card-body">
+                    @if (mostrarExito)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i> Guardado correctamente.
+                            <button type="button" class="btn-close" @onclick="() => mostrarExito = false"></button>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill"></i> @mensajeError
+                            <button type="button" class="btn-close" @onclick="() => mensajeError = null"></button>
+                        </div>
+                    }
+
+                    <EditForm Model="@nuevaEntrada" OnValidSubmit="GuardarEntrada" OnInvalidSubmit="ManejarErrorValidacion" FormName="FormEntrada">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Concepto / Punto de Venta</label>
+                            <InputSelect @bind-Value="nuevaEntrada.Concepto" class="form-select">
+                                <option value="">-- Seleccione una opción --</option>
+                                @foreach (var concepto in listaConceptos)
+                                {
+                                    <option value="@concepto">@concepto</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => nuevaEntrada.Concepto)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Monto ($)</label>
+                            @* CORRECCIÓN 2: Usamos InputText con propiedad inteligente para formato de moneda *@
+                            <InputText @bind-Value="MontoConFormato" class="form-control fw-bold text-end" placeholder="$ 0" />
+                            <ValidationMessage For="@(() => nuevaEntrada.Monto)" />
+                            <small class="text-muted">Escriba el valor numérico (se formatea al salir).</small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-save"></i> Registrar Ingreso
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Historial -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between">
+                    <h5 class="mb-0 text-secondary">Últimos Movimientos</h5>
+                    <span class="badge bg-success">Hoy: @totalHoy.ToString("C0")</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha y Hora</th>
+                                    <th>Concepto</th>
+                                    <th>Registrado Por</th>
+                                    <th class="text-end">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (listaEntradas == null)
+                                {
+                                    <tr><td colspan="4" class="text-center p-3">Cargando datos...</td></tr>
+                                }
+                                else if (!listaEntradas.Any())
+                                {
+                                    <tr><td colspan="4" class="text-center p-3 text-muted">No hay entradas registradas.</td></tr>
+                                }
+                                else
+                                {
+                                    @foreach (var item in listaEntradas)
+                                    {
+                                        <tr>
+                                            <td>@item.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>@item.Concepto</td>
+                                            <td><small class="text-muted">@item.Usuario?.Nombre</small></td>
+                                            <td class="text-end fw-bold text-success">@item.Monto.ToString("C0")</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Entrada nuevaEntrada { get; set; } = new Entrada();
+
+    private List<Entrada>? listaEntradas;
+    private decimal totalHoy = 0;
+    private bool mostrarExito = false;
+    private string? mensajeError;
+    private string usuarioIdLogueado = "";
+
+    // CORRECCIÓN 2: Propiedad auxiliar para manejar el formato de moneda en el input
+    private string MontoConFormato
+    {
+        get
+        {
+            // Si es 0, mostramos vacío para que se vea el placeholder, o el 0 si se prefiere
+            return nuevaEntrada.Monto == 0 ? "" : nuevaEntrada.Monto.ToString("N0");
+        }
+        set
+        {
+            // Limpiamos todo lo que no sea número (puntos, signos, letras)
+            if (string.IsNullOrEmpty(value))
+            {
+                nuevaEntrada.Monto = 0;
+            }
+            else
+            {
+                // Dejamos solo dígitos
+                var soloNumeros = new string(value.Where(char.IsDigit).ToArray());
+                if (decimal.TryParse(soloNumeros, out decimal resultado))
+                {
+                    nuevaEntrada.Monto = resultado;
+                }
+            }
+        }
+    }
+
+    private List<string> listaConceptos = new List<string>
+    {
+        "Caja 01", "Caja 02", "Caja 03",
+        "PV PERU", "PV ROTONDA", "PV SOL", "PV MADRID", "PV FACA",
+        "SOCIOS", "TO-GO"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                usuarioIdLogueado = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+
+                // CORRECCIÓN 1: Asignar el ID de usuario INMEDIATAMENTE.
+                // Esto evita que el validador [Required] del modelo bloquee el envío.
+                nuevaEntrada.UsuarioId = usuarioIdLogueado;
+            }
+
+            await CargarDatos();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar datos iniciales: {ex.Message}";
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        listaEntradas = await TesoreriaService.ObtenerEntradasAsync();
+        totalHoy = await TesoreriaService.ObtenerTotalEntradasHoyAsync();
+    }
+
+    private void ManejarErrorValidacion()
+    {
+        // Este mensaje aparecerá si algo falta (ahora ya no debería ser el UsuarioId)
+        mensajeError = "Por favor, seleccione un concepto y escriba un monto válido.";
+        mostrarExito = false;
+    }
+
+    private async Task GuardarEntrada()
+    {
+        mensajeError = null;
+        mostrarExito = false;
+
+        if (string.IsNullOrEmpty(usuarioIdLogueado))
+        {
+            mensajeError = "Sesión no válida. Recargue la página.";
+            return;
+        }
+
+        try
+        {
+            // Re-confirmamos el ID y asignamos fecha
+            nuevaEntrada.UsuarioId = usuarioIdLogueado;
+            nuevaEntrada.Fecha = DateTime.Now;
+
+            await TesoreriaService.RegistrarEntradaAsync(nuevaEntrada);
+
+            mostrarExito = true;
+
+            // Reiniciamos el formulario manteniendo el UsuarioId para la siguiente carga
+            nuevaEntrada = new Entrada { UsuarioId = usuarioIdLogueado };
+
+            await CargarDatos();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error en base de datos: {ex.Message}";
+        }
+    }
+}

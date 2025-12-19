@@ -1,0 +1,89 @@
+﻿@page "/login"
+@using TesoreriaMargaritas.Models
+@using TesoreriaMargaritas.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using System.ComponentModel.DataAnnotations
+@rendermode RenderMode.InteractiveServer
+@inject UserService UserService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="d-flex justify-content-center align-items-center vh-100 bg-light">
+    <div class="card shadow p-4" style="max-width: 400px; width: 100%;">
+        <div class="card-body">
+            <h3 class="text-center mb-4">Iniciar Sesión</h3>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
+                </div>
+            }
+
+            <EditForm Model="@loginData" OnValidSubmit="HandleLogin" FormName="LoginForm">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Número de Documento</label>
+                    <InputText @bind-Value="loginData.Documento" class="form-control" placeholder="Ingrese documento" />
+                    <ValidationMessage For="@(() => loginData.Documento)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <InputText @bind-Value="loginData.Password" type="password" class="form-control" placeholder="******" />
+                    <ValidationMessage For="@(() => loginData.Password)" />
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">Ingresar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Clase temporal solo para el formulario (DTO)
+    public class LoginDto
+    {
+        [Required(ErrorMessage = "El documento es requerido")]
+        public string Documento { get; set; } = "";
+
+        [Required(ErrorMessage = "La contraseña es requerida")]
+        public string Password { get; set; } = "";
+    }
+
+    [SupplyParameterFromForm]
+    private LoginDto loginData { get; set; } = new LoginDto();
+
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Crea un usuario por defecto si no existe ninguno (útil para pruebas)
+        await UserService.RegistrarUsuarioInicialAsync();
+    }
+
+    private async Task HandleLogin()
+    {
+        errorMessage = null;
+
+        var user = await UserService.LoginAsync(loginData.Documento, loginData.Password);
+
+        if (user != null)
+        {
+            var customProvider = (CustomAuthStateProvider)AuthStateProvider;
+            customProvider.MarkUserAsAuthenticated(user);
+
+            if (user.Rol == "Tesorero") NavigationManager.NavigateTo("/tesorero");
+            else if (user.Rol == "Contador") NavigationManager.NavigateTo("/contador");
+            else NavigationManager.NavigateTo("/");
+        }
+        else
+        {
+            errorMessage = "Credenciales incorrectas.";
+        }
+    }
+}

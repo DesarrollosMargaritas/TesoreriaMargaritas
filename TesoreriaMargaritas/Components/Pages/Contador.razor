@@ -1,0 +1,27 @@
+﻿@page "/contador"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@* Protege la página solo para el rol Contador *@
+@attribute [Authorize(Roles = "Contador")]
+
+<PageTitle>Panel Contable</PageTitle>
+
+<div class="container mt-5">
+    <div class="card border-success">
+        <div class="card-header bg-success text-white">
+            <h2>Módulo Contable</h2>
+        </div>
+        <div class="card-body">
+            <AuthorizeView>
+                <Authorized>
+                    <h4 class="card-title">Bienvenido, @context.User.Identity?.Name</h4>
+                    <p class="card-text">Tienes acceso a reportes, balances y auditoría.</p>
+                    <hr />
+                    <div class="alert alert-success">
+                        Aquí irán los gráficos y reportes financieros.
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>

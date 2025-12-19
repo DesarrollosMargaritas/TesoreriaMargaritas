@@ -1,0 +1,44 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Redirigiendo...</PageTitle>
+
+<div class="text-center mt-5">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p>Verificando credenciales...</p>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            // El usuario ya está logueado, lo redirigimos a su área
+            if (user.IsInRole("Tesorero"))
+            {
+                NavigationManager.NavigateTo("/tesorero");
+            }
+            else if (user.IsInRole("Contador"))
+            {
+                NavigationManager.NavigateTo("/contador");
+            }
+            else
+            {
+                // Si tiene otro rol o ninguno específico, se queda aquí o muestras un mensaje
+                // Por ahora dejémoslo en una vista genérica si quisieras
+            }
+        }
+        else
+        {
+            // El usuario NO está logueado, lo mandamos al login inmediatamente
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+}
