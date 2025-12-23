@@ -58,25 +58,11 @@
                             <ValidationMessage For="@(() => nuevoGasto.Concepto)" />
                         </div>
 
-                        <!-- 2. BENEFICIARIO (Dinámico) -->
+                        <!-- 2. BENEFICIARIO (Texto Libre Siempre) -->
                         <div class="mb-3">
-                            <label class="form-label">Beneficiario (@labelBeneficiario)</label>
-
-                            @if (esBeneficiarioLibre)
-                            {
-                                <InputText @bind-Value="nuevoGasto.Beneficiario" class="form-control text-uppercase" placeholder="NOMBRE PERSONA / EMPRESA" />
-                            }
-                            else
-                            {
-                                <!-- Usamos Datalist para permitir búsqueda y selección -->
-                                <input list="listaBeneficiarios" @bind="nuevoGasto.Beneficiario" class="form-control" placeholder="Escriba para buscar..." />
-                                <datalist id="listaBeneficiarios">
-                                    @foreach (var item in listaOpcionesBeneficiarios)
-                                    {
-                                        <option value="@item"></option>
-                                    }
-                                </datalist>
-                            }
+                            <label class="form-label">Beneficiario</label>
+                            <!-- La clase text-uppercase visualmente lo hace mayúscula, y en C# lo forzamos al guardar -->
+                            <InputText @bind-Value="nuevoGasto.Beneficiario" class="form-control text-uppercase" placeholder="NOMBRE PERSONA / EMPRESA" />
                             <ValidationMessage For="@(() => nuevoGasto.Beneficiario)" />
                         </div>
 
@@ -182,13 +168,10 @@
     private Gasto nuevoGasto { get; set; } = new Gasto();
 
     private List<Gasto>? listaGastos;
-    private List<string> listaOpcionesBeneficiarios = new(); // Se llena con Proveedores o Vendedores
 
-    // Estados visuales
-    private bool esBeneficiarioLibre = true;
+    // Estados visuales simplificados
     private bool esPrefijoFijo = true;
     private bool esConsecutivoManual = false;
-    private string labelBeneficiario = "Libre";
 
     private bool mostrarExito = false;
     private string? mensajeError;
@@ -226,67 +209,40 @@
         listaGastos = await TesoreriaService.ObtenerGastosAsync();
     }
 
-    // Lógica principal de cambio de estado según Concepto
-    private async void CambioConcepto(string concepto)
+    // Lógica simplificada: Solo configura prefijos, ya no carga listas externas
+    private void CambioConcepto(string concepto)
     {
         nuevoGasto.Concepto = concepto;
-        nuevoGasto.Beneficiario = ""; // Limpiar al cambiar
-        listaOpcionesBeneficiarios.Clear();
 
         switch (concepto)
         {
             case "Gasto":
-                esBeneficiarioLibre = true;
-                labelBeneficiario = "Libre";
                 nuevoGasto.Prefijo = "GAP";
                 esPrefijoFijo = true;
                 esConsecutivoManual = false; // Auto
                 break;
 
             case "Facturas":
-                esBeneficiarioLibre = false;
-                labelBeneficiario = "Buscar Proveedor";
-                await CargarProveedores();
                 nuevoGasto.Prefijo = ""; // Libre
                 esPrefijoFijo = false;
                 esConsecutivoManual = true; // Manual
                 break;
 
             case "Simplificados":
-                esBeneficiarioLibre = false;
-                labelBeneficiario = "Buscar Proveedor";
-                await CargarProveedores();
                 nuevoGasto.Prefijo = "SMP";
                 esPrefijoFijo = true;
                 esConsecutivoManual = false; // Auto
                 break;
 
             case "Nominas":
-                esBeneficiarioLibre = false;
-                labelBeneficiario = "Buscar Vendedor";
-                await CargarVendedores();
                 nuevoGasto.Prefijo = "NMP";
                 esPrefijoFijo = true;
                 esConsecutivoManual = false; // Auto
                 break;
 
             default:
-                esBeneficiarioLibre = true;
                 break;
         }
-        StateHasChanged();
-    }
-
-    private async Task CargarProveedores()
-    {
-        var proveedores = await TesoreriaService.ObtenerTodosProveedoresAsync();
-        listaOpcionesBeneficiarios = proveedores.Select(p => p.NOMPROVEEDOR).ToList();
-    }
-
-    private async Task CargarVendedores()
-    {
-        var vendedores = await TesoreriaService.ObtenerVendedoresAsync();
-        listaOpcionesBeneficiarios = vendedores.Select(v => v.NOMVENDEDOR).ToList();
     }
 
     private async Task GuardarGasto()
@@ -306,22 +262,26 @@
             return;
         }
 
-        // Convertir beneficiario a mayúsculas si es texto libre
-        if (esBeneficiarioLibre) nuevoGasto.Beneficiario = nuevoGasto.Beneficiario.ToUpper();
-        if (!esPrefijoFijo) nuevoGasto.Prefijo = nuevoGasto.Prefijo.ToUpper();
+        // Forzar Mayúsculas siempre
+        nuevoGasto.Beneficiario = nuevoGasto.Beneficiario.ToUpper();
+        if (!string.IsNullOrEmpty(nuevoGasto.Prefijo))
+        {
+            nuevoGasto.Prefijo = nuevoGasto.Prefijo.ToUpper();
+        }
 
         try
         {
             nuevoGasto.UsuarioId = usuarioIdLogueado;
-            nuevoGasto.Fecha = DateTime.Now;
+            // Si la fecha viene vacía o es minvalue, poner la actual
+            if (nuevoGasto.Fecha == DateTime.MinValue) nuevoGasto.Fecha = DateTime.Now;
 
             await TesoreriaService.RegistrarGastoAsync(nuevoGasto);
 
             mostrarExito = true;
-            // Reiniciar formulario manteniendo usuario
+
+            // Reiniciar formulario
             nuevoGasto = new Gasto { UsuarioId = usuarioIdLogueado };
-            // Resetear estados visuales
-            CambioConcepto("");
+            CambioConcepto(""); // Resetear estados
 
             await CargarDatos();
         }

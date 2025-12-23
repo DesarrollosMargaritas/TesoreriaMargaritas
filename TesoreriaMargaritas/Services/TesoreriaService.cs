@@ -13,7 +13,7 @@ namespace TesoreriaMargaritas.Services
             _context = context;
         }
 
-        // --- ENTRADAS (Existente) ---
+        // --- ENTRADAS ---
         public async Task<List<Entrada>> ObtenerEntradasAsync()
         {
             return await _context.Entradas
@@ -36,72 +36,60 @@ namespace TesoreriaMargaritas.Services
             await _context.SaveChangesAsync();
         }
 
-        // --- NUEVO: SALIDAS / GASTOS ---
+        // --- SALIDAS / GASTOS ---
 
-        // 1. Listas para Dropdowns (Optimizadas para búsqueda rápida)
-        public async Task<List<Proveedor>> BuscarProveedoresAsync(string termino)
+        // Nuevo método para el Dashboard
+        public async Task<decimal> ObtenerTotalGastosHoyAsync()
         {
-            if (string.IsNullOrWhiteSpace(termino)) return new List<Proveedor>();
-            
-            return await _context.Proveedores
-                .Where(p => p.NOMPROVEEDOR.Contains(termino))
-                .Take(20) // Limitamos para no sobrecargar
-                .ToListAsync();
-        }
-        
-        public async Task<List<Proveedor>> ObtenerTodosProveedoresAsync() 
-        {
-             // Ojo: Si son miles, esto puede ser lento. Mejor usar datalist en el cliente
-             return await _context.Proveedores.Take(1000).ToListAsync();
+            var hoy = DateTime.Today;
+            return await _context.Gastos
+                .Where(g => g.Fecha >= hoy && !g.Anulado)
+                .SumAsync(g => g.Monto);
         }
 
-        public async Task<List<Vendedor>> ObtenerVendedoresAsync()
-        {
-            return await _context.Vendedores.ToListAsync();
-        }
-
-        // 2. Lógica de Consecutivo Automático
         public async Task<int> ObtenerSiguienteConsecutivoAsync(string prefijo)
         {
             var secuencia = await _context.SecuenciasPrefijos.FindAsync(prefijo);
-            if (secuencia == null)
-            {
-                return 1; // Si no existe, arranca en 1
-            }
+            if (secuencia == null) return 1;
             return secuencia.UltimoConsecutivo + 1;
         }
 
-        // 3. Registrar Gasto (Transaccional)
         public async Task RegistrarGastoAsync(Gasto gasto)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            // CORRECCIÓN: Usar ExecutionStrategy para soportar EnableRetryOnFailure
+            // Esto evita el error: 'SqlServerRetryingExecutionStrategy does not support user-initiated transactions'
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            await strategy.ExecuteAsync(async () =>
             {
-                // Si NO es Factura, calculamos y actualizamos el consecutivo automático
-                if (gasto.Concepto != "Facturas")
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    var secuencia = await _context.SecuenciasPrefijos.FindAsync(gasto.Prefijo);
-                    if (secuencia == null)
+                    // Si NO es Factura (consecutivo manual), calculamos el automático
+                    if (gasto.Concepto != "Facturas")
                     {
-                        secuencia = new SecuenciaPrefijo { Prefijo = gasto.Prefijo, UltimoConsecutivo = 0 };
-                        _context.SecuenciasPrefijos.Add(secuencia);
+                        var secuencia = await _context.SecuenciasPrefijos.FindAsync(gasto.Prefijo);
+                        if (secuencia == null)
+                        {
+                            secuencia = new SecuenciaPrefijo { Prefijo = gasto.Prefijo, UltimoConsecutivo = 0 };
+                            _context.SecuenciasPrefijos.Add(secuencia);
+                        }
+
+                        secuencia.UltimoConsecutivo++;
+                        gasto.Consecutivo = secuencia.UltimoConsecutivo;
                     }
-                    
-                    secuencia.UltimoConsecutivo++;
-                    gasto.Consecutivo = secuencia.UltimoConsecutivo;
+
+                    _context.Gastos.Add(gasto);
+                    await _context.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
                 }
-
-                // Guardamos el gasto
-                _context.Gastos.Add(gasto);
-                await _context.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            });
         }
 
         public async Task<List<Gasto>> ObtenerGastosAsync()
