@@ -20,12 +20,14 @@ namespace TesoreriaMargaritas.Models
 
         public DateTime Fecha { get; set; } = DateTime.Now;
 
-        // RELACIÓN UNIFICADA: Usamos string para conectar con Usuario.NumeroDocumento
         [Required]
         [MaxLength(20)]
         public string UsuarioId { get; set; } = string.Empty;
 
         [ForeignKey("UsuarioId")]
         public Usuario? Usuario { get; set; }
+
+        // --- CORRECCIÓN: Agregamos el campo que causaba el error ---
+        public int? ArqueoId { get; set; }
     }
 }

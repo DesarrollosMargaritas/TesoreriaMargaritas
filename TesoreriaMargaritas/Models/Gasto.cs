@@ -13,7 +13,7 @@ namespace TesoreriaMargaritas.Models
 
         [Required(ErrorMessage = "Seleccione un concepto")]
         [MaxLength(50)]
-        public string Concepto { get; set; } = string.Empty; // Gasto, Facturas, Simplificados, Nominas
+        public string Concepto { get; set; } = string.Empty;
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
@@ -36,12 +36,14 @@ namespace TesoreriaMargaritas.Models
         [MaxLength(500)]
         public string Observaciones { get; set; } = string.Empty;
 
-        // Auditoría
         [Required]
         [MaxLength(20)]
         public string UsuarioId { get; set; } = string.Empty;
 
         [ForeignKey("UsuarioId")]
         public Usuario? Usuario { get; set; }
+
+        // --- CORRECCIÓN: Agregamos el campo que causaba el error ---
+        public int? ArqueoId { get; set; }
     }
 }

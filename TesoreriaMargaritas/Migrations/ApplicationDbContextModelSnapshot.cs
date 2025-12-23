@@ -22,188 +22,310 @@ namespace TesoreriaMargaritas.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("TesoreriaMargaritas.Models.Arqueo", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                b.Property<int>("CajaId")
+                    .HasColumnType("int");
+
+                b.Property<string>("ConteoDinero")
+                    .IsRequired()
+                    .HasColumnType("nvarchar(max)");
+
+                b.Property<decimal>("Descuadre")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<DateTime>("FechaArqueo")
+                    .HasColumnType("datetime2");
+
+                b.Property<DateTime>("FechaHora")
+                    .HasColumnType("datetime2");
+
+                b.Property<decimal>("SaldoFinalDia")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<decimal>("SaldoInicial")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<decimal>("TotEntradas")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<decimal>("TotEntradasAnu")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<decimal>("TotSalidas")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<decimal>("TotSalidasAnu")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<decimal>("TotalConteoDinero")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.Property<string>("UsuarioId")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("nvarchar(20)");
+
+                b.HasKey("Id");
+
+                b.HasIndex("CajaId");
+
+                b.HasIndex("UsuarioId");
+
+                b.ToTable("Arqueos");
+            });
+
+            modelBuilder.Entity("TesoreriaMargaritas.Models.Caja", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                b.Property<string>("Estado")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("nvarchar(20)");
+
+                b.Property<string>("Nombre")
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
+
+                b.Property<decimal>("SaldoActual")
+                    .HasColumnType("decimal(18, 2)");
+
+                b.HasKey("Id");
+
+                b.ToTable("Cajas");
+            });
+
             modelBuilder.Entity("TesoreriaMargaritas.Models.Entrada", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Concepto")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                b.Property<int?>("ArqueoId")
+                    .HasColumnType("int");
 
-                    b.Property<DateTime>("Fecha")
-                        .HasColumnType("datetime2");
+                b.Property<string>("Concepto")
+                    .IsRequired()
+                    .HasMaxLength(200)
+                    .HasColumnType("nvarchar(200)");
 
-                    b.Property<decimal>("Monto")
-                        .HasColumnType("decimal(18,2)");
+                b.Property<DateTime>("Fecha")
+                    .HasColumnType("datetime2");
 
-                    b.Property<string>("UsuarioId")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                b.Property<decimal>("Monto")
+                    .HasColumnType("decimal(18,2)");
 
-                    b.HasKey("Id");
+                b.Property<string>("UsuarioId")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("nvarchar(20)");
 
-                    b.HasIndex("UsuarioId");
+                b.HasKey("Id");
 
-                    b.ToTable("Entradas");
-                });
+                b.HasIndex("ArqueoId");
+
+                b.HasIndex("UsuarioId");
+
+                b.ToTable("Entradas");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Gasto", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("Anulado")
-                        .HasColumnType("bit");
+                b.Property<bool>("Anulado")
+                    .HasColumnType("bit");
 
-                    b.Property<string>("Beneficiario")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                b.Property<int?>("ArqueoId")
+                    .HasColumnType("int");
 
-                    b.Property<string>("Concepto")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                b.Property<string>("Beneficiario")
+                    .IsRequired()
+                    .HasMaxLength(200)
+                    .HasColumnType("nvarchar(200)");
 
-                    b.Property<int>("Consecutivo")
-                        .HasColumnType("int");
+                b.Property<string>("Concepto")
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
 
-                    b.Property<DateTime>("Fecha")
-                        .HasColumnType("datetime2");
+                b.Property<int>("Consecutivo")
+                    .HasColumnType("int");
 
-                    b.Property<decimal>("Monto")
-                        .HasColumnType("decimal(18,2)");
+                b.Property<DateTime>("Fecha")
+                    .HasColumnType("datetime2");
 
-                    b.Property<string>("Observaciones")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                b.Property<decimal>("Monto")
+                    .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("Prefijo")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                b.Property<string>("Observaciones")
+                    .IsRequired()
+                    .HasMaxLength(500)
+                    .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("UsuarioId")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                b.Property<string>("Prefijo")
+                    .IsRequired()
+                    .HasMaxLength(10)
+                    .HasColumnType("nvarchar(10)");
 
-                    b.HasKey("Id");
+                b.Property<string>("UsuarioId")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("nvarchar(20)");
 
-                    b.HasIndex("UsuarioId");
+                b.HasKey("Id");
 
-                    b.ToTable("Gastos");
-                });
+                b.HasIndex("ArqueoId");
+
+                b.HasIndex("UsuarioId");
+
+                b.ToTable("Gastos");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Proveedor", b =>
-                {
-                    b.Property<string>("CODPROVEEDOR")
-                        .HasColumnType("nvarchar(450)");
+            {
+                b.Property<string>("CODPROVEEDOR")
+                    .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("NOMPROVEEDOR")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                b.Property<string>("NOMPROVEEDOR")
+                    .IsRequired()
+                    .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("CODPROVEEDOR");
+                b.HasKey("CODPROVEEDOR");
 
-                    b.ToTable("PROVEEDORES");
-                });
+                b.ToTable("PROVEEDORES");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.SecuenciaPrefijo", b =>
-                {
-                    b.Property<string>("Prefijo")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+            {
+                b.Property<string>("Prefijo")
+                    .HasMaxLength(10)
+                    .HasColumnType("nvarchar(10)");
 
-                    b.Property<int>("UltimoConsecutivo")
-                        .HasColumnType("int");
+                b.Property<int>("UltimoConsecutivo")
+                    .HasColumnType("int");
 
-                    b.HasKey("Prefijo");
+                b.HasKey("Prefijo");
 
-                    b.ToTable("SecuenciasPrefijos");
-                });
+                b.ToTable("SecuenciasPrefijos");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Usuario", b =>
-                {
-                    b.Property<string>("NumeroDocumento")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+            {
+                b.Property<string>("NumeroDocumento")
+                    .HasMaxLength(20)
+                    .HasColumnType("nvarchar(20)");
 
-                    b.Property<bool>("Activo")
-                        .HasColumnType("bit");
+                b.Property<bool>("Activo")
+                    .HasColumnType("bit");
 
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime2");
+                b.Property<DateTime>("FechaCreacion")
+                    .HasColumnType("datetime2");
 
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                b.Property<string>("Nombre")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                b.Property<string>("PasswordHash")
+                    .IsRequired()
+                    .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Rol")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                b.Property<string>("Rol")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("nvarchar(20)");
 
-                    b.HasKey("NumeroDocumento");
+                b.HasKey("NumeroDocumento");
 
-                    b.ToTable("Usuarios");
-                });
+                b.ToTable("Usuarios");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Vendedor", b =>
-                {
-                    b.Property<string>("CODVENDEDOR")
-                        .HasColumnType("nvarchar(450)");
+            {
+                b.Property<string>("CODVENDEDOR")
+                    .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("NOMVENDEDOR")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                b.Property<string>("NOMVENDEDOR")
+                    .IsRequired()
+                    .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("CODVENDEDOR");
+                b.HasKey("CODVENDEDOR");
 
-                    b.ToTable("VENDEDORES");
-                });
+                b.ToTable("VENDEDORES");
+            });
+
+            modelBuilder.Entity("TesoreriaMargaritas.Models.Arqueo", b =>
+            {
+                b.HasOne("TesoreriaMargaritas.Models.Caja", "Caja")
+                    .WithMany()
+                    .HasForeignKey("CajaId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
+                    .WithMany()
+                    .HasForeignKey("UsuarioId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Caja");
+
+                b.Navigation("Usuario");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Entrada", b =>
-                {
-                    b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
-                        .WithMany("EntradasRegistradas")
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+            {
+                b.HasOne("TesoreriaMargaritas.Models.Arqueo", null)
+                    .WithMany()
+                    .HasForeignKey("ArqueoId");
 
-                    b.Navigation("Usuario");
-                });
+                b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
+                    .WithMany("EntradasRegistradas")
+                    .HasForeignKey("UsuarioId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Usuario");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Gasto", b =>
-                {
-                    b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+            {
+                b.HasOne("TesoreriaMargaritas.Models.Arqueo", null)
+                    .WithMany()
+                    .HasForeignKey("ArqueoId");
 
-                    b.Navigation("Usuario");
-                });
+                b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
+                    .WithMany()
+                    .HasForeignKey("UsuarioId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Usuario");
+            });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Usuario", b =>
-                {
-                    b.Navigation("EntradasRegistradas");
-                });
+            {
+                b.Navigation("EntradasRegistradas");
+            });
 #pragma warning restore 612, 618
         }
     }

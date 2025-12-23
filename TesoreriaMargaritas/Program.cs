@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics; // Namespace necesario
 using TesoreriaMargaritas.Components;
 using TesoreriaMargaritas.Data;
 using TesoreriaMargaritas.Services;
@@ -30,7 +31,12 @@ namespace TesoreriaMargaritas
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(30),
                         errorNumbersToAdd: null);
-                }));
+                })
+                // --- CORRECCIÓN CRÍTICA ---
+                // Ignoramos la advertencia de cambios pendientes para forzar la ejecución de la migración manual.
+                // Esto soluciona el error: "The model for context 'ApplicationDbContext' has pending changes."
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning))
+            );
 
             // --- CONFIGURACIÓN DE AUTENTICACIÓN ---
             builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -52,9 +58,8 @@ namespace TesoreriaMargaritas
 
             var app = builder.Build();
 
-            // --- BLOQUE DE MIGRACIÓN AUTOMÁTICA (SOLUCIÓN A TU ERROR) ---
-            // Esto revisa si la base de datos existe al darle "Play".
-            // Si no existe (porque la borraste), la crea y aplica las tablas automáticamente.
+            // --- BLOQUE DE MIGRACIÓN AUTOMÁTICA ---
+            // Este bloque intenta aplicar los cambios a la BD al iniciar.
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;

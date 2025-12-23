@@ -1,0 +1,257 @@
+﻿@page "/operaciones/cierre-caja"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using TesoreriaMargaritas.Models
+@using TesoreriaMargaritas.Services
+@using System.Security.Claims
+@using System.Text.Json
+@attribute [Authorize(Roles = "Tesorero, Administrador")]
+@rendermode RenderMode.InteractiveServer
+@inject TesoreriaService TesoreriaService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Cierre de Caja</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-safe2 text-primary"></i> Cierre de Caja</h2>
+        <a href="/tesorero" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+
+    @if (cierreExitoso)
+    {
+        <div class="alert alert-success text-center py-5">
+            <h1 class="display-4"><i class="bi bi-check-circle-fill"></i></h1>
+            <h3>¡Cierre Guardado Correctamente!</h3>
+            <p>El día ha sido cerrado. Se ha generado el arqueo.</p>
+            <a href="/tesorero" class="btn btn-primary mt-3">Volver al Panel</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- COLUMNA IZQUIERDA: CONTEO DE DINERO -->
+            <div class="col-md-6">
+                <div class="card shadow-sm border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Conteo de Dinero</h5>
+                    </div>
+                    <div class="card-body bg-light">
+                        <p class="text-muted small mb-3">Ingrese la cantidad de billetes y monedas físicos.</p>
+
+                        <div class="row g-2">
+                            @foreach (var denom in denominaciones)
+                            {
+                                <div class="col-6 col-sm-4">
+                                    <label class="form-label small fw-bold">@denom.Key.ToString("C0")</label>
+                                    <input type="number" min="0" class="form-control form-control-sm text-end"
+                                           value="@(conteo[denom.Key])"
+                                           @onchange="@(e => ActualizarConteo(denom.Key, e.Value))"
+                                           onfocus="this.select()" />
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                            <span class="h5 mb-0">Total Físico:</span>
+                            <span class="h3 mb-0 text-primary">@totalConteo.ToString("C0")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA: RESUMEN DEL SISTEMA -->
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0 text-secondary">Resumen del Sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (cargando)
+                        {
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <p>Calculando movimientos...</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush mb-3">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Saldo Inicial (Día Anterior)</span>
+                                    <strong>@datosPrevios.SaldoInicial.ToString("C0")</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between text-success">
+                                    <span>(+) Total Entradas</span>
+                                    <strong>@datosPrevios.TotEntradas.ToString("C0")</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between text-danger">
+                                    <span>(-) Total Salidas</span>
+                                    <strong>@datosPrevios.TotSalidas.ToString("C0")</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between bg-light fw-bold">
+                                    <span>(=) Saldo Teórico Sistema</span>
+                                    <span>@SaldoTeorico.ToString("C0")</span>
+                                </li>
+                            </ul>
+
+                            <hr />
+
+                            <!-- CÁLCULO DE DESCUADRE (Ahora usa propiedades C# seguras) -->
+                            <div class="text-center mb-4">
+                                <h5>Descuadre / Diferencia</h5>
+                                <h2 class="@ColorDescuadre fw-bold">@Descuadre.ToString("C0")</h2>
+                                <small class="text-muted">@TextoDescuadre</small>
+                            </div>
+
+                            <!-- RESUMEN ANULADOS -->
+                            <div class="alert alert-secondary py-1 px-2 small mb-4">
+                                <div class="d-flex justify-content-between">
+                                    <span>Entradas Anuladas:</span>
+                                    <span>@datosPrevios.TotEntradasAnu.ToString("C0")</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Salidas Anuladas:</span>
+                                    <span>@datosPrevios.TotSalidasAnu.ToString("C0")</span>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(mensajeError))
+                            {
+                                <div class="alert alert-danger">@mensajeError</div>
+                            }
+
+                            <div class="d-grid">
+                                <button class="btn btn-success btn-lg" @onclick="ConfirmarCierre" disabled="@procesando">
+                                    @if (procesando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                        <span> Guardando...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-lock-fill"></i>
+                                        <span> Cerrar Caja Definitivamente</span>
+                                    }
+                                </button>
+                                <small class="text-center text-muted mt-2">
+                                    <i class="bi bi-info-circle"></i> Una vez cerrado, no se pueden modificar los registros.
+                                </small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private Dictionary<int, int> denominaciones = new Dictionary<int, int>
+    {
+        { 100000, 0 }, { 50000, 0 }, { 20000, 0 }, { 10000, 0 }, { 5000, 0 }, { 2000, 0 },
+        { 1000, 0 }, { 500, 0 }, { 200, 0 }, { 100, 0 }, { 50, 0 }
+    };
+
+    private Dictionary<int, int> conteo = new Dictionary<int, int>();
+
+    private decimal totalConteo => conteo.Sum(x => x.Key * x.Value);
+
+    private Arqueo datosPrevios = new Arqueo();
+    private bool cargando = true;
+    private bool procesando = false;
+    private bool cierreExitoso = false;
+    private string mensajeError = "";
+    private string usuarioId = "";
+
+    // --- CORRECCIÓN: Propiedades calculadas para evitar errores en la vista ---
+    private decimal SaldoTeorico => datosPrevios.SaldoInicial + datosPrevios.TotEntradas - datosPrevios.TotSalidas;
+    private decimal Descuadre => totalConteo - SaldoTeorico;
+
+    private string ColorDescuadre
+    {
+        get
+        {
+            if (Descuadre == 0) return "text-success";
+            if (Descuadre < 0) return "text-danger";
+            return "text-warning";
+        }
+    }
+
+    private string TextoDescuadre
+    {
+        get
+        {
+            if (Descuadre == 0) return "Perfecto";
+            if (Descuadre < 0) return "Faltante";
+            return "Sobrante";
+        }
+    }
+    // ------------------------------------------------------------------------
+
+    protected override async Task OnInitializedAsync()
+    {
+        foreach (var kvp in denominaciones) conteo.Add(kvp.Key, 0);
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        usuarioId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+
+        try
+        {
+            datosPrevios = await TesoreriaService.SimularCierreActualAsync();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void ActualizarConteo(int denom, object? valor)
+    {
+        if (int.TryParse(valor?.ToString(), out int cantidad) && cantidad >= 0)
+        {
+            conteo[denom] = cantidad;
+        }
+        else
+        {
+            conteo[denom] = 0;
+        }
+    }
+
+    private async Task ConfirmarCierre()
+    {
+        if (procesando) return;
+        procesando = true;
+        mensajeError = "";
+
+        try
+        {
+            var cierreFinal = new Arqueo
+            {
+                FechaHora = DateTime.Now,
+                FechaArqueo = DateTime.Today,
+                UsuarioId = usuarioId,
+                SaldoInicial = datosPrevios.SaldoInicial,
+                TotEntradas = datosPrevios.TotEntradas,
+                TotEntradasAnu = datosPrevios.TotEntradasAnu,
+                TotSalidas = datosPrevios.TotSalidas,
+                TotSalidasAnu = datosPrevios.TotSalidasAnu,
+                ConteoDinero = JsonSerializer.Serialize(conteo),
+                TotalConteoDinero = totalConteo,
+                CajaId = 1
+            };
+
+            await TesoreriaService.GuardarCierreCajaAsync(cierreFinal);
+            cierreExitoso = true;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cerrar: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+}
