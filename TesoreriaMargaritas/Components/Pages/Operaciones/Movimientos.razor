@@ -1,0 +1,225 @@
+﻿@page "/operaciones/movimientos"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using TesoreriaMargaritas.Services
+@using System.Security.Claims
+@attribute [Authorize(Roles = "Tesorero, Administrador, Contador")]
+@rendermode RenderMode.InteractiveServer
+@inject TesoreriaService TesoreriaService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<PageTitle>Consulta de Movimientos</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-arrow-left-right text-primary"></i> Consulta de Movimientos</h2>
+        <!-- Enlace dinámico según el rol -->
+        <a href="@rutaVolver" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Panel
+        </a>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light">
+            <div class="row align-items-end g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Fecha Inicial</label>
+                    <input type="date" class="form-control" @bind="fechaInicio" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Fecha Final</label>
+                    <input type="date" class="form-control" @bind="fechaFin" />
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100" @onclick="Consultar" disabled="@cargando">
+                        @if (cargando)
+                        {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-search"></i>
+                        }
+                        Consultar
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-success w-100" @onclick="DescargarExcel" disabled="@(cargando || movimientos == null || !movimientos.Any())">
+                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="card shadow-sm">
+        @if (movimientos == null)
+        {
+            <div class="text-center p-5 text-muted">
+                <i class="bi bi-search display-4"></i>
+                <p class="mt-3">Seleccione un rango de fechas y presione Consultar.</p>
+            </div>
+        }
+        else if (cargando)
+        {
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p>Buscando transacciones...</p>
+            </div>
+        }
+        else if (!movimientos.Any())
+        {
+            <div class="alert alert-warning m-3">
+                <i class="bi bi-info-circle"></i> No se encontraron movimientos en el rango seleccionado.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Ref</th>
+                            <th>Concepto</th>
+                            <th>Detalle / Beneficiario</th>
+                            <th>Usuario</th>
+                            <th class="text-end">Monto</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in movimientos)
+                        {
+                            <tr class="@(m.Anulado ? "text-decoration-line-through text-muted" : "")">
+                                <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    @if (m.Tipo == "Entrada")
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success">Entrada</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger border border-danger">Salida</span>
+                                    }
+                                </td>
+                                <td><small>@m.Referencia</small></td>
+                                <td>@m.Concepto</td>
+                                <td>@m.Detalle</td>
+                                <td><small class="text-muted">@m.Usuario</small></td>
+                                <td class="text-end fw-bold @(m.Tipo == "Entrada" ? "text-success" : "text-danger")">
+                                    @m.Monto.ToString("C0")
+                                </td>
+                                <td class="text-center">
+                                    @if (m.Anulado)
+                                    {
+                                        <span class="badge bg-secondary">Anulado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-dark border">OK</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="6" class="text-end fw-bold">Total Neto (Visibles):</td>
+                            <td class="text-end fw-bold text-primary">
+                                @movimientos.Where(x => !x.Anulado).Sum(x => x.Tipo == "Entrada" ? x.Monto : -x.Monto).ToString("C0")
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+        const arrayBuffer = await contentStreamReference.arrayBuffer();
+        const blob = new Blob([arrayBuffer]);
+        const url = URL.createObjectURL(blob);
+        const anchorElement = document.createElement('a');
+        anchorElement.href = url;
+        anchorElement.download = fileName ?? '';
+        anchorElement.click();
+        anchorElement.remove();
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+@code {
+    private DateTime fechaInicio = DateTime.Today;
+    private DateTime fechaFin = DateTime.Today;
+    private List<TransaccionDTO>? movimientos;
+    private bool cargando = false;
+    private string rutaVolver = "/tesorero"; // Valor por defecto
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Determinar ruta de retorno según Rol
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.IsInRole("Contador"))
+        {
+            rutaVolver = "/contador";
+        }
+        else if (user.IsInRole("Tesorero"))
+        {
+            rutaVolver = "/tesorero";
+        }
+        else
+        {
+            rutaVolver = "/"; // Fallback
+        }
+    }
+
+    private async Task Consultar()
+    {
+        if (fechaInicio > fechaFin)
+        {
+            var temp = fechaInicio; fechaInicio = fechaFin; fechaFin = temp;
+        }
+
+        cargando = true;
+        movimientos = null;
+        await Task.Delay(100);
+
+        try
+        {
+            movimientos = await TesoreriaService.ObtenerMovimientosPorRangoAsync(fechaInicio, fechaFin);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task DescargarExcel()
+    {
+        cargando = true;
+        try
+        {
+            var bytes = await TesoreriaService.GenerarReporteExcelMovimientosAsync(fechaInicio, fechaFin);
+            var fileName = $"Movimientos_{fechaInicio:yyyyMMdd}_{fechaFin:yyyyMMdd}.xlsx";
+
+            using var stream = new MemoryStream(bytes);
+            using var streamRef = new DotNetStreamReference(stream);
+
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

@@ -29,5 +29,7 @@ namespace TesoreriaMargaritas.Models
 
         // --- CORRECCIÓN: Agregamos el campo que causaba el error ---
         public int? ArqueoId { get; set; }
+
+        public bool Anulado { get; set; } = false;
     }
 }

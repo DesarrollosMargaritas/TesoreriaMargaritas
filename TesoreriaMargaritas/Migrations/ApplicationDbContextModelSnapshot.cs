@@ -115,6 +115,9 @@ namespace TesoreriaMargaritas.Migrations
 
                 SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                b.Property<bool>("Anulado")
+                    .HasColumnType("bit");
+
                 b.Property<int?>("ArqueoId")
                     .HasColumnType("int");
 

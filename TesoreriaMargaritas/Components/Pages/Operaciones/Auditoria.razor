@@ -1,0 +1,218 @@
+﻿@page "/operaciones/auditoria"
+@using Microsoft.AspNetCore.Authorization
+@using TesoreriaMargaritas.Services
+@attribute [Authorize(Roles = "Tesorero, Administrador")]
+@rendermode RenderMode.InteractiveServer
+@inject TesoreriaService TesoreriaService
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<PageTitle>Auditoría de Movimientos</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-shield-lock text-dark"></i> Auditoría Operativa</h2>
+            <p class="text-muted mb-0">Gestión de movimientos pendientes de cierre.</p>
+        </div>
+        <a href="/contador" class="btn btn-outline-secondary">Volver</a>
+    </div>
+
+    @if (movimientos == null)
+    {
+        <div class="text-center p-5"><div class="spinner-border"></div></div>
+    }
+    else if (!movimientos.Any())
+    {
+        <div class="alert alert-success text-center p-5">
+            <i class="bi bi-check-all display-1"></i>
+            <h4 class="mt-3">Todo al día</h4>
+            <p>No hay movimientos pendientes de cierre para auditar.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Ref</th>
+                            <th>Tipo</th>
+                            <th>Detalle</th>
+                            <th class="text-end">Monto</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in movimientos)
+                        {
+                            <tr class="@(m.Anulado ? "table-secondary opacity-75" : "")">
+                                <td>@m.Fecha.ToString("dd/MM HH:mm")</td>
+                                <td><small>@m.Referencia</small></td>
+                                <td>
+                                    @if (m.Tipo == "Entrada")
+                                    {
+                                        <span class="badge bg-success">Entrada</span>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="badge bg-danger">Salida</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="fw-bold">@m.Concepto</div>
+                                    <small class="text-muted">@m.Detalle</small>
+                                </td>
+                                <td class="text-end fw-bold">@m.Monto.ToString("C0")</td>
+                                <td class="text-center">
+                                    @if (m.Anulado)
+                                    {
+                                        <span class="badge bg-secondary">ANULADO</span>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="badge bg-primary">ACTIVO</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (!m.Anulado)
+                                    {
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirEditar(m)" title="Modificar Valor">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarAnulacion(m)" title="Anular">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <small class="text-muted">Bloqueado</small>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Edición -->
+@if (itemEditar != null)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Monto</h5>
+                    <button type="button" class="btn-close" @onclick="() => itemEditar = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Editando: <strong>@itemEditar.Referencia</strong> - @itemEditar.Concepto</p>
+                    <label class="form-label">Nuevo Monto</label>
+                    <input type="number" class="form-control" @bind="nuevoMonto" />
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => itemEditar = null">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="GuardarEdicion">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Confirmación Anular -->
+@if (itemAnular != null)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirmar Anulación</h5>
+                    <button type="button" class="btn-close" @onclick="() => itemAnular = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea anular esta transacción?</p>
+                    <div class="alert alert-warning">
+                        <strong>@itemAnular.Referencia</strong><br />
+                        @itemAnular.Concepto - @itemAnular.Monto.ToString("C0")
+                    </div>
+                    <p class="small text-muted">Esta acción aparecerá en el cierre como anulada, pero el monto no sumará.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => itemAnular = null">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="EjecutarAnulacion">Sí, Anular</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TransaccionDTO>? movimientos;
+    private TransaccionDTO? itemEditar;
+    private TransaccionDTO? itemAnular;
+    private decimal nuevoMonto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        movimientos = await TesoreriaService.ObtenerMovimientosPendientesAsync();
+    }
+
+    private void AbrirEditar(TransaccionDTO item)
+    {
+        itemEditar = item;
+        nuevoMonto = item.Monto;
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (itemEditar != null && nuevoMonto > 0)
+        {
+            try
+            {
+                await TesoreriaService.ModificarMontoTransaccionAsync(itemEditar.Id, itemEditar.Tipo, nuevoMonto);
+                itemEditar = null;
+                await CargarDatos();
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", "Error: " + ex.Message);
+            }
+        }
+    }
+
+    private void ConfirmarAnulacion(TransaccionDTO item)
+    {
+        itemAnular = item;
+    }
+
+    private async Task EjecutarAnulacion()
+    {
+        if (itemAnular != null)
+        {
+            try
+            {
+                await TesoreriaService.AnularTransaccionAsync(itemAnular.Id, itemAnular.Tipo);
+                itemAnular = null;
+                await CargarDatos();
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", "Error: " + ex.Message);
+            }
+        }
+    }
+}

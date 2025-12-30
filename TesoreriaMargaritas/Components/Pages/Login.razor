@@ -9,43 +9,59 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 
-<div class="d-flex justify-content-center align-items-center vh-100 bg-light">
-    <div class="card shadow p-4" style="max-width: 400px; width: 100%;">
-        <div class="card-body">
-            <h3 class="text-center mb-4">Iniciar Sesión</h3>
+<div class="d-flex justify-content-center align-items-center vh-100" style="background-color: var(--tm-bg-light);">
+    <div class="card shadow login-card p-4" style="max-width: 400px; width: 100%;">
+        <div class="card-body text-center">
+
+            <!-- LOGO -->
+            <div class="mb-4">
+                <img src="images/logo-responsive-las-margaritas.png" alt="Las Margaritas" class="img-fluid" style="max-height: 100px;">
+            </div>
+
+            <h4 class="mb-4 text-secondary">Acceso Tesorería</h4>
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="alert alert-danger" role="alert">
-                    @errorMessage
+                    <i class="bi bi-exclamation-circle-fill"></i> @errorMessage
                 </div>
             }
 
             <EditForm Model="@loginData" OnValidSubmit="HandleLogin" FormName="LoginForm">
                 <DataAnnotationsValidator />
 
-                <div class="mb-3">
-                    <label class="form-label">Número de Documento</label>
-                    <InputText @bind-Value="loginData.Documento" class="form-control" placeholder="Ingrese documento" />
+                <div class="mb-3 text-start">
+                    <label class="form-label fw-bold small text-muted">DOCUMENTO</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-person-fill text-danger"></i></span>
+                        <InputText @bind-Value="loginData.Documento" class="form-control" placeholder="Ingrese usuario" />
+                    </div>
                     <ValidationMessage For="@(() => loginData.Documento)" />
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Contraseña</label>
-                    <InputText @bind-Value="loginData.Password" type="password" class="form-control" placeholder="******" />
+                <div class="mb-4 text-start">
+                    <label class="form-label fw-bold small text-muted">CONTRASEÑA</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-lock-fill text-danger"></i></span>
+                        <InputText @bind-Value="loginData.Password" type="password" class="form-control" placeholder="******" />
+                    </div>
                     <ValidationMessage For="@(() => loginData.Password)" />
                 </div>
 
                 <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-primary">Ingresar</button>
+                    <button type="submit" class="btn btn-primary btn-lg fw-bold">
+                        INGRESAR
+                    </button>
                 </div>
             </EditForm>
+        </div>
+        <div class="card-footer bg-white border-0 text-center mt-2">
+            <small class="text-muted">© @DateTime.Now.Year Las Margaritas</small>
         </div>
     </div>
 </div>
 
 @code {
-    // Clase temporal solo para el formulario (DTO)
     public class LoginDto
     {
         [Required(ErrorMessage = "El documento es requerido")]
@@ -62,7 +78,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Crea un usuario por defecto si no existe ninguno (útil para pruebas)
         await UserService.RegistrarUsuarioInicialAsync();
     }
 

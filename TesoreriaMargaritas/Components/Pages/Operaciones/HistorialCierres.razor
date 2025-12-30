@@ -1,0 +1,238 @@
+﻿@page "/operaciones/historial-cierres"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using TesoreriaMargaritas.Models
+@using TesoreriaMargaritas.Services
+@using System.Text.Json
+@using System.Security.Claims
+@attribute [Authorize(Roles = "Tesorero, Administrador, Contador")]
+@rendermode RenderMode.InteractiveServer
+@inject TesoreriaService TesoreriaService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<PageTitle>Historial de Cierres</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="bi bi-clock-history text-secondary"></i> Historial de Cierres</h2>
+        <!-- Enlace dinámico según el rol -->
+        <a href="@rutaVolver" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    @if (listaCierres == null)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p>Cargando historial...</p>
+        </div>
+    }
+    else if (!listaCierres.Any())
+    {
+        <div class="alert alert-info">No se encontraron cierres registrados.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th># Cierre</th>
+                            <th>Fecha Arqueo</th>
+                            <th>Hora Cierre</th>
+                            <th>Responsable</th>
+                            <th class="text-end">Físico</th>
+                            <th class="text-end">Diferencia</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in listaCierres)
+                        {
+                            <tr>
+                                <td><span class="badge bg-light text-dark border">@c.Id</span></td>
+                                <td>@c.FechaArqueo.ToString("dd/MM/yyyy")</td>
+                                <td><small class="text-muted">@c.FechaHora.ToString("hh:mm tt")</small></td>
+                                <td>@c.UsuarioId</td>
+                                <td class="text-end fw-bold">@c.TotalConteoDinero.ToString("C0")</td>
+                                <td class="text-end">
+                                    @if (c.Descuadre == 0)
+                                    {
+                                        <span class="badge bg-success">Perfecto</span>
+                                    }
+                                    else if (c.Descuadre < 0)
+                                    {
+                                        <span class="text-danger fw-bold">@c.Descuadre.ToString("C0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-warning fw-bold">+@c.Descuadre.ToString("C0")</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-primary" @onclick="() => VerDetalle(c)">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- MODAL DE DETALLE -->
+@if (arqueoSeleccionado != null)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title">Detalle Cierre #@arqueoSeleccionado.Id</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Fecha:</strong> @arqueoSeleccionado.FechaArqueo.ToShortDateString()</p>
+                            <p><strong>Usuario:</strong> @arqueoSeleccionado.UsuarioId</p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <h3 class="@(arqueoSeleccionado.Descuadre < 0 ? "text-danger" : "text-success")">
+                                @(arqueoSeleccionado.Descuadre == 0 ? "Cuadre OK" : $"Dif: {arqueoSeleccionado.Descuadre:C0}")
+                            </h3>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Columna Dinero -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-primary">
+                                <div class="card-header bg-primary text-white py-1">Dinero Contado</div>
+                                <div class="card-body p-2">
+                                    <h4 class="text-center text-primary mb-3">@arqueoSeleccionado.TotalConteoDinero.ToString("C0")</h4>
+                                    <ul class="list-group list-group-flush small">
+                                        @foreach (var billete in arqueoSeleccionado.DetalleConteo)
+                                        {
+                                            if (billete.Value > 0)
+                                            {
+                                                <li class="list-group-item d-flex justify-content-between py-1">
+                                                    <span>@(decimal.Parse(billete.Key).ToString("C0")) x @billete.Value</span>
+                                                    <strong>@((decimal.Parse(billete.Key) * billete.Value).ToString("C0"))</strong>
+                                                </li>
+                                            }
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Columna Sistema -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-secondary">
+                                <div class="card-header bg-secondary text-white py-1">Sistema</div>
+                                <div class="card-body p-2">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Saldo Inicial:</span>
+                                            <span>@arqueoSeleccionado.SaldoInicial.ToString("C0")</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between text-success">
+                                            <span>(+) Entradas:</span>
+                                            <span>@arqueoSeleccionado.TotEntradas.ToString("C0")</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between text-danger">
+                                            <span>(-) Salidas:</span>
+                                            <span>@arqueoSeleccionado.TotSalidas.ToString("C0")</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between fw-bold bg-light">
+                                            <span>Esperado:</span>
+                                            <span>@((arqueoSeleccionado.SaldoInicial + arqueoSeleccionado.TotEntradas - arqueoSeleccionado.TotSalidas).ToString("C0"))</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="() => DescargarExcel(arqueoSeleccionado.Id)">
+                        <i class="bi bi-file-earmark-excel"></i> Descargar Excel (.xlsx)
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+    window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+        const arrayBuffer = await contentStreamReference.arrayBuffer();
+        const blob = new Blob([arrayBuffer]);
+        const url = URL.createObjectURL(blob);
+        const anchorElement = document.createElement('a');
+        anchorElement.href = url;
+        anchorElement.download = fileName ?? '';
+        anchorElement.click();
+        anchorElement.remove();
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+@code {
+    private List<Arqueo>? listaCierres;
+    private Arqueo? arqueoSeleccionado;
+    private string rutaVolver = "/tesorero"; // Valor por defecto
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Determinar ruta de retorno según Rol
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.IsInRole("Contador"))
+        {
+            rutaVolver = "/contador";
+        }
+        else if (user.IsInRole("Tesorero"))
+        {
+            rutaVolver = "/tesorero";
+        }
+        else
+        {
+            rutaVolver = "/"; // Fallback
+        }
+
+        // 2. Cargar datos
+        listaCierres = await TesoreriaService.ObtenerHistorialCierresAsync();
+    }
+
+    private void VerDetalle(Arqueo arqueo)
+    {
+        arqueoSeleccionado = arqueo;
+    }
+
+    private void CerrarModal()
+    {
+        arqueoSeleccionado = null;
+    }
+
+    private async Task DescargarExcel(int id)
+    {
+        var bytes = await TesoreriaService.GenerarReporteExcelCierreAsync(id);
+        var fileName = $"Cierre_Caja_{id}_{DateTime.Now:yyyyMMdd}.xlsx";
+
+        using var stream = new MemoryStream(bytes);
+        using var streamRef = new DotNetStreamReference(stream);
+
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+}
