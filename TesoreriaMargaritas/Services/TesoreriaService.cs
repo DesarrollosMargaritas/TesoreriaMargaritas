@@ -136,7 +136,12 @@ namespace TesoreriaMargaritas.Services
         public async Task<Arqueo> SimularCierreActualAsync()
         {
             var arqueo = new Arqueo();
-            arqueo.SaldoInicial = await ObtenerUltimoSaldoFinalAsync();
+
+            // --- CAMBIO APLICADO: DÍAS INDEPENDIENTES ---
+            // Antes: arqueo.SaldoInicial = await ObtenerUltimoSaldoFinalAsync();
+            // Ahora:
+            arqueo.SaldoInicial = 0;
+            // --------------------------------------------
 
             var entradas = await _context.Entradas.Where(e => e.ArqueoId == null).ToListAsync();
             arqueo.TotEntradas = entradas.Where(e => !e.Anulado).Sum(e => e.Monto);
@@ -203,7 +208,7 @@ namespace TesoreriaMargaritas.Services
             return await _context.Arqueos.Include(a => a.Usuario).FirstOrDefaultAsync(a => a.Id == arqueoId);
         }
 
-        // --- REPORTES EXCEL (CORREGIDOS PARA EVITAR ERROR 0KB) ---
+        // --- REPORTES EXCEL ---
 
         public async Task<byte[]> GenerarReporteExcelCierreAsync(int arqueoId)
         {
@@ -216,21 +221,16 @@ namespace TesoreriaMargaritas.Services
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add($"Cierre {arqueo.Id}");
 
-            // Estilos simples para evitar problemas de fuentes
             var moneyFormat = "$ #,##0.00";
 
-            // Título
             ws.Cell("A1").Value = "REPORTE DE CIERRE DE CAJA";
             ws.Range("A1:E1").Merge();
-            // Eliminamos estilos complejos que causan error si faltan fuentes en el servidor
 
-            // Información General
             ws.Cell("A3").Value = "ID Cierre:"; ws.Cell("B3").Value = arqueo.Id;
             ws.Cell("A4").Value = "Fecha:"; ws.Cell("B4").Value = arqueo.FechaArqueo.ToShortDateString();
             ws.Cell("A5").Value = "Responsable:"; ws.Cell("B5").Value = arqueo.UsuarioId;
             ws.Cell("A6").Value = "Generado:"; ws.Cell("B6").Value = DateTime.Now.ToString();
 
-            // Resumen Financiero
             int row = 8;
             ws.Cell(row, 1).Value = "RESUMEN FINANCIERO";
             row++;
@@ -291,12 +291,9 @@ namespace TesoreriaMargaritas.Services
                 row++;
             }
 
-            // CORRECCIÓN CRÍTICA: Eliminamos AdjustToContents()
-            // ws.Columns().AdjustToContents(); // ESTA LÍNEA CAUSA EL ERROR EN IIS SI NO HAY FUENTES INSTALADAS
-
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            stream.Position = 0; // Aseguramos posición al inicio
+            stream.Position = 0;
             return stream.ToArray();
         }
 
@@ -353,7 +350,6 @@ namespace TesoreriaMargaritas.Services
 
             var moneyFormat = "$ #,##0.00";
 
-            // Título y Filtros
             ws.Cell("A1").Value = "REPORTE DE MOVIMIENTOS";
             ws.Range("A1:G1").Merge();
 
@@ -361,7 +357,6 @@ namespace TesoreriaMargaritas.Services
             ws.Cell("C3").Value = "Hasta:"; ws.Cell("D3").Value = fin.ToShortDateString();
             ws.Cell("F3").Value = "Generado:"; ws.Cell("G3").Value = DateTime.Now.ToString();
 
-            // Encabezados Tabla
             int row = 5;
             ws.Cell(row, 1).Value = "Fecha y Hora";
             ws.Cell(row, 2).Value = "Tipo";
@@ -392,12 +387,9 @@ namespace TesoreriaMargaritas.Services
                 row++;
             }
 
-            // CORRECCIÓN CRÍTICA: Eliminamos AdjustToContents()
-            // ws.Columns().AdjustToContents(); 
-
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            stream.Position = 0; // Reiniciar posición del stream
+            stream.Position = 0;
             return stream.ToArray();
         }
 

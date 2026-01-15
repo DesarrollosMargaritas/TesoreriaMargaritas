@@ -60,10 +60,16 @@
 
                         <div class="mb-3">
                             <label class="form-label">Monto ($)</label>
-                            @* CORRECCIÓN 2: Usamos InputText con propiedad inteligente para formato de moneda *@
                             <InputText @bind-Value="MontoConFormato" class="form-control fw-bold text-end" placeholder="$ 0" />
                             <ValidationMessage For="@(() => nuevaEntrada.Monto)" />
-                            <small class="text-muted">Escriba el valor numérico (se formatea al salir).</small>
+                            <small class="text-muted">Escriba el valor numérico.</small>
+                        </div>
+
+                        <!-- NUEVO CAMPO OBSERVACIONES -->
+                        <div class="mb-3">
+                            <label class="form-label">Observaciones (Opcional)</label>
+                            <InputTextArea @bind-Value="nuevaEntrada.Observaciones" class="form-control" rows="2" placeholder="Detalles adicionales..." />
+                            <ValidationMessage For="@(() => nuevaEntrada.Observaciones)" />
                         </div>
 
                         <div class="d-grid gap-2">
@@ -90,7 +96,7 @@
                                 <tr>
                                     <th>Fecha y Hora</th>
                                     <th>Concepto</th>
-                                    <th>Registrado Por</th>
+                                    <th>Obs.</th> <!-- Columna extra opcional -->
                                     <th class="text-end">Monto</th>
                                 </tr>
                             </thead>
@@ -108,9 +114,14 @@
                                     @foreach (var item in listaEntradas)
                                     {
                                         <tr>
-                                            <td>@item.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>@item.Fecha.ToString("dd/MM HH:mm")</td>
                                             <td>@item.Concepto</td>
-                                            <td><small class="text-muted">@item.Usuario?.Nombre</small></td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(item.Observaciones))
+                                                {
+                                                    <i class="bi bi-card-text text-muted" title="@item.Observaciones"></i>
+                                                }
+                                            </td>
                                             <td class="text-end fw-bold text-success">@item.Monto.ToString("C0")</td>
                                         </tr>
                                     }
@@ -134,24 +145,17 @@
     private string? mensajeError;
     private string usuarioIdLogueado = "";
 
-    // CORRECCIÓN 2: Propiedad auxiliar para manejar el formato de moneda en el input
     private string MontoConFormato
     {
-        get
-        {
-            // Si es 0, mostramos vacío para que se vea el placeholder, o el 0 si se prefiere
-            return nuevaEntrada.Monto == 0 ? "" : nuevaEntrada.Monto.ToString("N0");
-        }
+        get => nuevaEntrada.Monto == 0 ? "" : nuevaEntrada.Monto.ToString("N0");
         set
         {
-            // Limpiamos todo lo que no sea número (puntos, signos, letras)
             if (string.IsNullOrEmpty(value))
             {
                 nuevaEntrada.Monto = 0;
             }
             else
             {
-                // Dejamos solo dígitos
                 var soloNumeros = new string(value.Where(char.IsDigit).ToArray());
                 if (decimal.TryParse(soloNumeros, out decimal resultado))
                 {
@@ -178,9 +182,6 @@
             if (user.Identity != null && user.Identity.IsAuthenticated)
             {
                 usuarioIdLogueado = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
-
-                // CORRECCIÓN 1: Asignar el ID de usuario INMEDIATAMENTE.
-                // Esto evita que el validador [Required] del modelo bloquee el envío.
                 nuevaEntrada.UsuarioId = usuarioIdLogueado;
             }
 
@@ -200,7 +201,6 @@
 
     private void ManejarErrorValidacion()
     {
-        // Este mensaje aparecerá si algo falta (ahora ya no debería ser el UsuarioId)
         mensajeError = "Por favor, seleccione un concepto y escriba un monto válido.";
         mostrarExito = false;
     }
@@ -218,15 +218,12 @@
 
         try
         {
-            // Re-confirmamos el ID y asignamos fecha
             nuevaEntrada.UsuarioId = usuarioIdLogueado;
             nuevaEntrada.Fecha = DateTime.Now;
 
             await TesoreriaService.RegistrarEntradaAsync(nuevaEntrada);
 
             mostrarExito = true;
-
-            // Reiniciamos el formulario manteniendo el UsuarioId para la siguiente carga
             nuevaEntrada = new Entrada { UsuarioId = usuarioIdLogueado };
 
             await CargarDatos();

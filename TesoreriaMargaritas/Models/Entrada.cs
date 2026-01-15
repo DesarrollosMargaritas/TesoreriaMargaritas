@@ -31,5 +31,8 @@ namespace TesoreriaMargaritas.Models
         public int? ArqueoId { get; set; }
 
         public bool Anulado { get; set; } = false;
+
+        [MaxLength(500)]
+        public string? Observaciones { get; set; }
     }
 }
