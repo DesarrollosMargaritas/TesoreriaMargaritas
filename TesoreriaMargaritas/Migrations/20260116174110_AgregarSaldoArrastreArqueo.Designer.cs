@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TesoreriaMargaritas.Data;
 
@@ -11,9 +12,11 @@ using TesoreriaMargaritas.Data;
 namespace TesoreriaMargaritas.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260116174110_AgregarSaldoArrastreArqueo")]
+    partial class AgregarSaldoArrastreArqueo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,83 +33,44 @@ namespace TesoreriaMargaritas.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("BaseCaja")
-                        .HasColumnType("decimal(18, 2)");
-
                     b.Property<int>("CajaId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ConteoBilletesJson")
+                    b.Property<string>("ConteoDinero")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("DescuadreDaviplata")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("DescuadreEfectivo")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("DescuadreNequi")
+                    b.Property<decimal>("Descuadre")
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<DateTime>("FechaArqueo")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("FechaCierre")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime>("FechaHora")
                         .HasColumnType("datetime2");
-
-                    b.Property<decimal>("FisicoEfectivo")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<string>("Observaciones")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("ReportadoDaviplata")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("ReportadoNequi")
-                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("SaldoArrastreAnterior")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SaldoInicialDaviplata")
+                    b.Property<decimal>("SaldoFinalDia")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SaldoInicialEfectivo")
+                    b.Property<decimal>("SaldoInicial")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SaldoInicialNequi")
+                    b.Property<decimal>("TotEntradas")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SistEntradasDaviplata")
+                    b.Property<decimal>("TotEntradasAnu")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SistEntradasEfectivo")
+                    b.Property<decimal>("TotSalidas")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SistEntradasNequi")
+                    b.Property<decimal>("TotSalidasAnu")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SistSalidasDaviplata")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("SistSalidasEfectivo")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("SistSalidasNequi")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("SistTotalDaviplata")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("SistTotalEfectivo")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("SistTotalNequi")
+                    b.Property<decimal>("TotalConteoDinero")
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<string>("UsuarioId")
@@ -116,9 +80,37 @@ namespace TesoreriaMargaritas.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CajaId");
+
                     b.HasIndex("UsuarioId");
 
                     b.ToTable("Arqueos");
+                });
+
+            modelBuilder.Entity("TesoreriaMargaritas.Models.Caja", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("SaldoActual")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Cajas");
                 });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Entrada", b =>
@@ -143,11 +135,6 @@ namespace TesoreriaMargaritas.Migrations
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FormaPago")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<decimal>("Monto")
                         .HasColumnType("decimal(18,2)");
 
@@ -161,8 +148,6 @@ namespace TesoreriaMargaritas.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ArqueoId");
 
                     b.HasIndex("UsuarioId");
 
@@ -199,11 +184,6 @@ namespace TesoreriaMargaritas.Migrations
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FormaPago")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<decimal>("Monto")
                         .HasColumnType("decimal(18,2)");
 
@@ -223,8 +203,6 @@ namespace TesoreriaMargaritas.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ArqueoId");
 
                     b.HasIndex("UsuarioId");
 
@@ -306,45 +284,41 @@ namespace TesoreriaMargaritas.Migrations
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Arqueo", b =>
                 {
+                    b.HasOne("TesoreriaMargaritas.Models.Caja", "Caja")
+                        .WithMany()
+                        .HasForeignKey("CajaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
                         .WithMany()
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Caja");
 
                     b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Entrada", b =>
                 {
-                    b.HasOne("TesoreriaMargaritas.Models.Arqueo", "Arqueo")
-                        .WithMany()
-                        .HasForeignKey("ArqueoId");
-
                     b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
                         .WithMany("EntradasRegistradas")
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Arqueo");
-
                     b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Gasto", b =>
                 {
-                    b.HasOne("TesoreriaMargaritas.Models.Arqueo", "Arqueo")
-                        .WithMany()
-                        .HasForeignKey("ArqueoId");
-
                     b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
                         .WithMany()
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Arqueo");
 
                     b.Navigation("Usuario");
                 });

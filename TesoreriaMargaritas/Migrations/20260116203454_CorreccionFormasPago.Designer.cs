@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TesoreriaMargaritas.Data;
 
@@ -11,9 +12,11 @@ using TesoreriaMargaritas.Data;
 namespace TesoreriaMargaritas.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260116203454_CorreccionFormasPago")]
+    partial class CorreccionFormasPago
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,6 +65,7 @@ namespace TesoreriaMargaritas.Migrations
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<string>("Observaciones")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("ReportadoDaviplata")
@@ -73,13 +77,7 @@ namespace TesoreriaMargaritas.Migrations
                     b.Property<decimal>("SaldoArrastreAnterior")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SaldoInicialDaviplata")
-                        .HasColumnType("decimal(18, 2)");
-
                     b.Property<decimal>("SaldoInicialEfectivo")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("SaldoInicialNequi")
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("SistEntradasDaviplata")

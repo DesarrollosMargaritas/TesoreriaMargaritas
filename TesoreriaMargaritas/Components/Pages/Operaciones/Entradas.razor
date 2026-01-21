@@ -4,7 +4,6 @@
 @using TesoreriaMargaritas.Models
 @using TesoreriaMargaritas.Services
 @using System.Security.Claims
-@using System.Globalization
 @attribute [Authorize(Roles = "Tesorero, Administrador")]
 @rendermode RenderMode.InteractiveServer
 @inject TesoreriaService TesoreriaService
@@ -16,12 +15,12 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2><i class="bi bi-graph-up-arrow text-success"></i> Entradas de Dinero</h2>
         <a href="/tesorero" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Volver al Panel
+            <i class="bi bi-arrow-left"></i> Volver
         </a>
     </div>
 
     <div class="row">
-        <!-- Formulario de Registro -->
+        <!-- Formulario -->
         <div class="col-md-4">
             <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white">
@@ -30,105 +29,98 @@
                 <div class="card-body">
                     @if (mostrarExito)
                     {
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="bi bi-check-circle"></i> Guardado correctamente.
+                        <div class="alert alert-success alert-dismissible fade show">
+                            <i class="bi bi-check-circle"></i> Guardado.
                             <button type="button" class="btn-close" @onclick="() => mostrarExito = false"></button>
                         </div>
                     }
-                    @if (!string.IsNullOrEmpty(mensajeError))
-                    {
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill"></i> @mensajeError
-                            <button type="button" class="btn-close" @onclick="() => mensajeError = null"></button>
-                        </div>
-                    }
 
-                    <EditForm Model="@nuevaEntrada" OnValidSubmit="GuardarEntrada" OnInvalidSubmit="ManejarErrorValidacion" FormName="FormEntrada">
+                    <EditForm Model="@nuevaEntrada" OnValidSubmit="GuardarEntrada">
                         <DataAnnotationsValidator />
 
                         <div class="mb-3">
-                            <label class="form-label">Concepto / Punto de Venta</label>
+                            <label class="form-label fw-bold">Concepto</label>
                             <InputSelect @bind-Value="nuevaEntrada.Concepto" class="form-select">
-                                <option value="">-- Seleccione una opción --</option>
-                                @foreach (var concepto in listaConceptos)
+                                <option value="">-- Seleccione --</option>
+                                @foreach (var c in listaConceptos)
                                 {
-                                    <option value="@concepto">@concepto</option>
+                                    <option value="@c">@c</option>
                                 }
                             </InputSelect>
                             <ValidationMessage For="@(() => nuevaEntrada.Concepto)" />
                         </div>
 
+                        <!-- NUEVO SELECTOR FORMA DE PAGO -->
                         <div class="mb-3">
-                            <label class="form-label">Monto ($)</label>
-                            <InputText @bind-Value="MontoConFormato" class="form-control fw-bold text-end" placeholder="$ 0" />
+                            <label class="form-label fw-bold">Forma de Pago</label>
+                            <InputSelect @bind-Value="nuevaEntrada.FormaPago" class="form-select border-success">
+                                <option value="Efectivo">Efectivo 💵</option>
+                                <option value="Nequi">Nequi 📱</option>
+                                <option value="Daviplata">Daviplata 🔴</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => nuevaEntrada.FormaPago)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Monto ($)</label>
+                            <InputText @bind-Value="MontoConFormato" class="form-control fw-bold text-end text-success fs-5" />
                             <ValidationMessage For="@(() => nuevaEntrada.Monto)" />
-                            <small class="text-muted">Escriba el valor numérico.</small>
                         </div>
 
-                        <!-- NUEVO CAMPO OBSERVACIONES -->
                         <div class="mb-3">
-                            <label class="form-label">Observaciones (Opcional)</label>
-                            <InputTextArea @bind-Value="nuevaEntrada.Observaciones" class="form-control" rows="2" placeholder="Detalles adicionales..." />
-                            <ValidationMessage For="@(() => nuevaEntrada.Observaciones)" />
+                            <label class="form-label">Observaciones</label>
+                            <InputTextArea @bind-Value="nuevaEntrada.Observaciones" class="form-control" rows="2" />
                         </div>
 
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-save"></i> Registrar Ingreso
-                            </button>
-                        </div>
+                        <button type="submit" class="btn btn-success w-100 btn-lg">Registrar</button>
                     </EditForm>
                 </div>
             </div>
         </div>
 
-        <!-- Tabla de Historial -->
+        <!-- Tabla -->
         <div class="col-md-8">
             <div class="card shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between">
-                    <h5 class="mb-0 text-secondary">Últimos Movimientos</h5>
-                    <span class="badge bg-success">Hoy: @totalHoy.ToString("C0")</span>
-                </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Fecha y Hora</th>
-                                    <th>Concepto</th>
-                                    <th>Obs.</th> <!-- Columna extra opcional -->
-                                    <th class="text-end">Monto</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (listaEntradas == null)
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Hora</th>
+                                <th>Concepto</th>
+                                <th>Medio</th>
+                                <th class="text-end">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (listaEntradas != null)
+                            {
+                                @foreach (var item in listaEntradas)
                                 {
-                                    <tr><td colspan="4" class="text-center p-3">Cargando datos...</td></tr>
+                                    <tr>
+                                        <td>@item.Fecha.ToString("HH:mm")</td>
+                                        <td>@item.Concepto</td>
+                                        <td>
+                                            @if (item.FormaPago == "Efectivo")
+                                            {
+                                                <span class="badge bg-success">Efectivo</span>
+                                            }
+                                            else if (item.FormaPago == "Nequi")
+                                            {
+
+                                                <span class="badge bg-dark">Nequi</span>
+                                            }
+                                            else
+                                            {
+
+                                                <span class="badge bg-danger">Daviplata</span>
+                                            }
+                                        </td>
+                                        <td class="text-end fw-bold">@item.Monto.ToString("C0")</td>
+                                    </tr>
                                 }
-                                else if (!listaEntradas.Any())
-                                {
-                                    <tr><td colspan="4" class="text-center p-3 text-muted">No hay entradas registradas.</td></tr>
-                                }
-                                else
-                                {
-                                    @foreach (var item in listaEntradas)
-                                    {
-                                        <tr>
-                                            <td>@item.Fecha.ToString("dd/MM HH:mm")</td>
-                                            <td>@item.Concepto</td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(item.Observaciones))
-                                                {
-                                                    <i class="bi bi-card-text text-muted" title="@item.Observaciones"></i>
-                                                }
-                                            </td>
-                                            <td class="text-end fw-bold text-success">@item.Monto.ToString("C0")</td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -136,101 +128,40 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private Entrada nuevaEntrada { get; set; } = new Entrada();
-
+    [SupplyParameterFromForm] private Entrada nuevaEntrada { get; set; } = new Entrada();
     private List<Entrada>? listaEntradas;
-    private decimal totalHoy = 0;
-    private bool mostrarExito = false;
-    private string? mensajeError;
+    private bool mostrarExito;
     private string usuarioIdLogueado = "";
 
     private string MontoConFormato
     {
         get => nuevaEntrada.Monto == 0 ? "" : nuevaEntrada.Monto.ToString("N0");
-        set
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                nuevaEntrada.Monto = 0;
-            }
-            else
-            {
-                var soloNumeros = new string(value.Where(char.IsDigit).ToArray());
-                if (decimal.TryParse(soloNumeros, out decimal resultado))
-                {
-                    nuevaEntrada.Monto = resultado;
-                }
-            }
-        }
+        set { if (decimal.TryParse(new string(value.Where(char.IsDigit).ToArray()), out decimal r)) nuevaEntrada.Monto = r; }
     }
 
-    private List<string> listaConceptos = new List<string>
-    {
-        "Caja 01", "Caja 02", "Caja 03",
-        "PV PERU", "PV ROTONDA", "PV SOL", "PV MADRID", "PV FACA",
-        "SOCIOS", "TO-GO"
-    };
+    private List<string> listaConceptos = new List<string> { "Caja 01", "Caja 02", "Caja 03", "PV PERU", "PV ROTONDA", "SOCIOS", "TO-GO" };
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-
-            if (user.Identity != null && user.Identity.IsAuthenticated)
-            {
-                usuarioIdLogueado = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
-                nuevaEntrada.UsuarioId = usuarioIdLogueado;
-            }
-
-            await CargarDatos();
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error al cargar datos iniciales: {ex.Message}";
-        }
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        usuarioIdLogueado = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+        nuevaEntrada.UsuarioId = usuarioIdLogueado;
+        await CargarDatos();
     }
 
     private async Task CargarDatos()
     {
         listaEntradas = await TesoreriaService.ObtenerEntradasAsync();
-        totalHoy = await TesoreriaService.ObtenerTotalEntradasHoyAsync();
-    }
-
-    private void ManejarErrorValidacion()
-    {
-        mensajeError = "Por favor, seleccione un concepto y escriba un monto válido.";
-        mostrarExito = false;
     }
 
     private async Task GuardarEntrada()
     {
-        mensajeError = null;
-        mostrarExito = false;
-
-        if (string.IsNullOrEmpty(usuarioIdLogueado))
-        {
-            mensajeError = "Sesión no válida. Recargue la página.";
-            return;
-        }
-
-        try
-        {
-            nuevaEntrada.UsuarioId = usuarioIdLogueado;
-            nuevaEntrada.Fecha = DateTime.Now;
-
-            await TesoreriaService.RegistrarEntradaAsync(nuevaEntrada);
-
-            mostrarExito = true;
-            nuevaEntrada = new Entrada { UsuarioId = usuarioIdLogueado };
-
-            await CargarDatos();
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error en base de datos: {ex.Message}";
-        }
+        if (string.IsNullOrEmpty(usuarioIdLogueado)) return;
+        nuevaEntrada.UsuarioId = usuarioIdLogueado;
+        nuevaEntrada.Fecha = DateTime.Now;
+        await TesoreriaService.RegistrarEntradaAsync(nuevaEntrada);
+        mostrarExito = true;
+        nuevaEntrada = new Entrada { UsuarioId = usuarioIdLogueado, FormaPago = "Efectivo" }; // Reset
+        await CargarDatos();
     }
 }

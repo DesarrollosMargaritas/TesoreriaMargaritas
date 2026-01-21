@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TesoreriaMargaritas.Data;
 
@@ -11,9 +12,11 @@ using TesoreriaMargaritas.Data;
 namespace TesoreriaMargaritas.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260116195147_AgregarFormasPagoMovimientos")]
+    partial class AgregarFormasPagoMovimientos
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,6 +65,7 @@ namespace TesoreriaMargaritas.Migrations
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<string>("Observaciones")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("ReportadoDaviplata")
@@ -73,13 +77,7 @@ namespace TesoreriaMargaritas.Migrations
                     b.Property<decimal>("SaldoArrastreAnterior")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal>("SaldoInicialDaviplata")
-                        .HasColumnType("decimal(18, 2)");
-
                     b.Property<decimal>("SaldoInicialEfectivo")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("SaldoInicialNequi")
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("SistEntradasDaviplata")
@@ -162,8 +160,6 @@ namespace TesoreriaMargaritas.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ArqueoId");
-
                     b.HasIndex("UsuarioId");
 
                     b.ToTable("Entradas");
@@ -223,8 +219,6 @@ namespace TesoreriaMargaritas.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ArqueoId");
 
                     b.HasIndex("UsuarioId");
 
@@ -317,34 +311,22 @@ namespace TesoreriaMargaritas.Migrations
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Entrada", b =>
                 {
-                    b.HasOne("TesoreriaMargaritas.Models.Arqueo", "Arqueo")
-                        .WithMany()
-                        .HasForeignKey("ArqueoId");
-
                     b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
                         .WithMany("EntradasRegistradas")
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Arqueo");
-
                     b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("TesoreriaMargaritas.Models.Gasto", b =>
                 {
-                    b.HasOne("TesoreriaMargaritas.Models.Arqueo", "Arqueo")
-                        .WithMany()
-                        .HasForeignKey("ArqueoId");
-
                     b.HasOne("TesoreriaMargaritas.Models.Usuario", "Usuario")
                         .WithMany()
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Arqueo");
 
                     b.Navigation("Usuario");
                 });

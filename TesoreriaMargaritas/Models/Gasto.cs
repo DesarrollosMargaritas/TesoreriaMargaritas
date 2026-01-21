@@ -13,12 +13,17 @@ namespace TesoreriaMargaritas.Models
 
         [Required(ErrorMessage = "Seleccione un concepto")]
         [MaxLength(50)]
-        public string Concepto { get; set; } = string.Empty;
+        public string Concepto { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
         [Range(0.01, double.MaxValue, ErrorMessage = "El monto debe ser mayor a 0")]
         public decimal Monto { get; set; }
+
+        // --- NUEVO CAMPO ---
+        [Required(ErrorMessage = "Seleccione medio de pago")]
+        [MaxLength(20)]
+        public string FormaPago { get; set; } = "Efectivo"; // Efectivo, Nequi, Daviplata
 
         [Required(ErrorMessage = "El beneficiario es obligatorio")]
         [MaxLength(200)]
@@ -43,7 +48,9 @@ namespace TesoreriaMargaritas.Models
         [ForeignKey("UsuarioId")]
         public Usuario? Usuario { get; set; }
 
-        // --- CORRECCIÓN: Agregamos el campo que causaba el error ---
         public int? ArqueoId { get; set; }
+
+        [ForeignKey("ArqueoId")]
+        public virtual Arqueo Arqueo { get; set; }
     }
 }

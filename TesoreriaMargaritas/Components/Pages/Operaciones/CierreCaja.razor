@@ -11,9 +11,9 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 
-<PageTitle>Cierre de Caja Ciego</PageTitle>
+<PageTitle>Cierre de Caja Multimedio</PageTitle>
 
-<div class="container mt-4">
+<div class="container mt-4 pb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-safe2 text-primary"></i> Cierre de Caja</h2>
         <a href="/tesorero" class="btn btn-outline-secondary">Cancelar</a>
@@ -21,261 +21,180 @@
 
     @if (cierreExitoso)
     {
-        <div class="alert alert-success text-center py-5 shadow-sm">
-            <h1 class="display-4 text-success"><i class="bi bi-check-circle-fill"></i></h1>
-            <h3>¡Cierre Registrado!</h3>
-            <p class="lead">El arqueo ha sido guardado definitivamente.</p>
-
-            <div class="row justify-content-center mt-4 text-start">
-
-                <!-- Columna Izquierda: Resultados Financieros -->
-                <div class="col-md-5 mb-3">
-                    <div class="p-4 bg-white border rounded shadow-sm h-100">
-                        <h5 class="border-bottom pb-2 mb-3 text-secondary">Resultado del Arqueo</h5>
-
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Saldo Sistema:</span>
-                            <strong>@SaldoTeorico.ToString("C0")</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Conteo Físico:</span>
-                            <strong>@totalConteo.ToString("C0")</strong>
-                        </div>
-
-                        <hr />
-
-                        <div class="text-center">
-                            <small class="text-muted d-block mb-1">Diferencia Final</small>
-                            <h2 class="@ColorDescuadre fw-bold m-0">@Descuadre.ToString("C0")</h2>
-                            <span class="badge @(Descuadre == 0 ? "bg-success" : (Descuadre < 0 ? "bg-danger" : "bg-warning text-dark")) mt-2">
-                                @TextoDescuadre
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Columna Derecha: Detalle de Movimientos -->
-                <div class="col-md-5 mb-3">
-                    <div class="p-4 bg-white border rounded shadow-sm h-100">
-                        <h5 class="border-bottom pb-2 mb-3 text-secondary">Resumen de Operaciones</h5>
-
-                        <!-- Entradas -->
-                        <h6 class="text-success"><i class="bi bi-graph-up-arrow"></i> Entradas (@cantEntradas)</h6>
-                        <ul class="list-group list-group-flush small mb-3">
-                            @foreach (var item in resumenEntradas)
-                            {
-                                <li class="list-group-item d-flex justify-content-between px-0 py-1 border-0">
-                                    <span>@item.Key</span>
-                                    <span>@item.Value.ToString("C0")</span>
-                                </li>
-                            }
-                            @if (cantEntradas == 0)
-                            {
-                                <li class="text-muted fst-italic">Sin movimientos</li>
-                            }
-                        </ul>
-
-                        <!-- Salidas -->
-                        <h6 class="text-danger mt-3"><i class="bi bi-graph-down-arrow"></i> Salidas (@cantSalidas)</h6>
-                        <ul class="list-group list-group-flush small">
-                            @foreach (var item in resumenSalidas)
-                            {
-                                <li class="list-group-item d-flex justify-content-between px-0 py-1 border-0">
-                                    <span>@item.Key</span>
-                                    <span>@item.Value.ToString("C0")</span>
-                                </li>
-                            }
-                            @if (cantSalidas == 0)
-                            {
-                                <li class="text-muted fst-italic">Sin movimientos</li>
-                            }
-                        </ul>
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="mt-5">
-                <a href="/tesorero" class="btn btn-primary btn-lg px-5">Volver al Panel</a>
-            </div>
+        <div class="alert alert-success text-center py-5">
+            <h1 class="display-4"><i class="bi bi-check-circle-fill"></i></h1>
+            <h3>¡Cierre Guardado!</h3>
+            <p>Se han conciliado Efectivo, Nequi y Daviplata.</p>
+            <a href="/tesorero" class="btn btn-primary mt-3">Volver al Inicio</a>
         </div>
     }
     else
     {
-        <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="card shadow-sm border-primary mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Conteo de Dinero (Ciego)</h5>
-                    </div>
-                    <div class="card-body bg-light">
-                        <div class="alert alert-warning small mb-3">
-                            <i class="bi bi-exclamation-circle-fill"></i> <strong>Atención:</strong>
-                            Este proceso es irreversible. Una vez confirme el cierre, el sistema registrará cualquier diferencia automáticamente.
-                        </div>
-
+        <!-- 1. ARQUEO DE EFECTIVO -->
+        <div class="card shadow-sm border-primary mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between">
+                <h5 class="mb-0">1. Arqueo de Efectivo 💵</h5>
+                <span class="badge bg-white text-primary">Saldo Inicial: @arqueo.SaldoInicialEfectivo.ToString("C0")</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Billetes -->
+                    <div class="col-md-7 border-end">
+                        <h6 class="text-muted mb-3">Conteo de Billetes</h6>
                         <div class="row g-2">
                             @foreach (var denom in denominaciones)
                             {
-                                <div class="col-6 col-sm-4">
-                                    <label class="form-label small fw-bold">@denom.Key.ToString("C0")</label>
-                                    <input type="number" min="0" class="form-control form-control-sm text-end"
+                                <div class="col-4 col-sm-3">
+                                    <label class="small fw-bold">@denom.Key.ToString("N0")</label>
+                                    <input type="number" min="0" class="form-control form-control-sm text-end bg-light"
                                            value="@(conteo[denom.Key])"
-                                           @onchange="@(e => ActualizarConteo(denom.Key, e.Value))"
-                                           onfocus="this.select()"
-                                           disabled="@procesando" />
+                                           @onchange="@(e => ActualizarConteo(denom.Key, e.Value))" />
                                 </div>
                             }
                         </div>
-
-                        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center bg-white p-3 rounded border">
-                            <span class="h5 mb-0 text-secondary">Total Contado:</span>
-                            <span class="h3 mb-0 text-primary fw-bold">@totalConteo.ToString("C0")</span>
+                        <div class="mt-3 p-2 bg-light rounded d-flex justify-content-between fw-bold text-primary">
+                            <span>TOTAL FÍSICO:</span>
+                            <span>@TotalFisicoEfectivo.ToString("C0")</span>
                         </div>
-
-                        @if (!string.IsNullOrEmpty(mensajeError))
-                        {
-                            <div class="alert alert-danger mt-3 mb-0">
-                                <i class="bi bi-bug-fill"></i> @mensajeError
-                            </div>
-                        }
-
-                        <div class="d-grid mt-4">
-                            <button class="btn btn-primary btn-lg" @onclick="ConfirmarCierreDefinitivo" disabled="@procesando">
-                                @if (procesando)
-                                {
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                    <span> Guardando Arqueo...</span>
-                                }
-                                else
-                                {
-                                    <span><i class="bi bi-lock-fill"></i> Cerrar Caja Definitivamente</span>
-                                }
-                            </button>
+                    </div>
+                    <!-- Resumen Sistema -->
+                    <div class="col-md-5 ps-md-4">
+                        <h6 class="text-muted">Sistema Efectivo</h6>
+                        <ul class="list-group list-group-flush small">
+                            <li class="list-group-item d-flex justify-content-between"><span>(+) Entradas:</span> <span>@arqueo.SistEntradasEfectivo.ToString("C0")</span></li>
+                            <li class="list-group-item d-flex justify-content-between"><span>(-) Salidas:</span> <span>@arqueo.SistSalidasEfectivo.ToString("C0")</span></li>
+                            <li class="list-group-item d-flex justify-content-between fw-bold"><span>(=) Debería Haber:</span> <span>@arqueo.SistTotalEfectivo.ToString("C0")</span></li>
+                        </ul>
+                        <div class="mt-3 text-center">
+                            <small>Diferencia Efectivo</small>
+                            <h3 class="@GetColor(DescuadreEfectivo)">@DescuadreEfectivo.ToString("C0")</h3>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- 2. CRUCE NEQUI -->
+        <div class="card shadow-sm border-dark mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between">
+                <h5 class="mb-0">2. Cruce Nequi 📱</h5>
+                <span class="badge bg-white text-dark">Inicial: @arqueo.SaldoInicialNequi.ToString("C0")</span>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">¿Cuánto reporta la App/Movimientos del día?</label>
+                        <InputNumber @bind-Value="arqueo.ReportadoNequi" class="form-control form-control-lg fw-bold" />
+                        <small class="text-muted">Ingrese el saldo final de la App Nequi.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group small">
+                            <li class="list-group-item d-flex justify-content-between"><span>Entradas Nequi:</span> <span class="text-success">@arqueo.SistEntradasNequi.ToString("C0")</span></li>
+                            <li class="list-group-item d-flex justify-content-between"><span>Salidas Nequi:</span> <span class="text-danger">@arqueo.SistSalidasNequi.ToString("C0")</span></li>
+                            <li class="list-group-item d-flex justify-content-between fw-bold bg-light"><span>Debería Haber:</span> <span>@arqueo.SistTotalNequi.ToString("C0")</span></li>
+                        </ul>
+                        <div class="text-end mt-2">
+                            <strong>Dif: </strong> <span class="@GetColor(arqueo.ReportadoNequi - arqueo.SistTotalNequi)">@((arqueo.ReportadoNequi - arqueo.SistTotalNequi).ToString("C0"))</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. CRUCE DAVIPLATA -->
+        <div class="card shadow-sm border-danger mb-4">
+            <div class="card-header bg-danger text-white d-flex justify-content-between">
+                <h5 class="mb-0">3. Cruce Daviplata 🔴</h5>
+                <span class="badge bg-white text-danger">Inicial: @arqueo.SaldoInicialDaviplata.ToString("C0")</span>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">¿Cuánto reporta Daviplata?</label>
+                        <InputNumber @bind-Value="arqueo.ReportadoDaviplata" class="form-control form-control-lg fw-bold text-danger" />
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group small">
+                            <li class="list-group-item d-flex justify-content-between"><span>Entradas Davi:</span> <span class="text-success">@arqueo.SistEntradasDaviplata.ToString("C0")</span></li>
+                            <li class="list-group-item d-flex justify-content-between"><span>Salidas Davi:</span> <span class="text-danger">@arqueo.SistSalidasDaviplata.ToString("C0")</span></li>
+                            <li class="list-group-item d-flex justify-content-between fw-bold bg-light"><span>Debería Haber:</span> <span>@arqueo.SistTotalDaviplata.ToString("C0")</span></li>
+                        </ul>
+                        <div class="text-end mt-2">
+                            <strong>Dif: </strong> <span class="@GetColor(arqueo.ReportadoDaviplata - arqueo.SistTotalDaviplata)">@((arqueo.ReportadoDaviplata - arqueo.SistTotalDaviplata).ToString("C0"))</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 mb-5">
+            <button class="btn btn-success btn-lg py-3" @onclick="CerrarCaja" disabled="@procesando">
+                @if (procesando)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                else
+                {
+
+                    <i class="bi bi-lock-fill"></i>
+                }
+                CONFIRMAR CIERRE DEFINITIVO
+            </button>
         </div>
     }
 </div>
 
 @code {
-    private Dictionary<int, int> denominaciones = new Dictionary<int, int>
-    {
-        { 100000, 0 }, { 50000, 0 }, { 20000, 0 }, { 10000, 0 }, { 5000, 0 }, { 2000, 0 },
-        { 1000, 0 }, { 500, 0 }, { 200, 0 }, { 100, 0 }, { 50, 0 }
-    };
+    private Arqueo arqueo = new Arqueo();
+    private Dictionary<int, int> denominaciones = new() { { 100000, 0 }, { 50000, 0 }, { 20000, 0 }, { 10000, 0 }, { 5000, 0 }, { 2000, 0 }, { 1000, 0 }, { 500, 0 }, { 200, 0 }, { 100, 0 }, { 50, 0 } };
+    private Dictionary<int, int> conteo = new();
 
-    private Dictionary<int, int> conteo = new Dictionary<int, int>();
-    private decimal totalConteo => conteo.Sum(x => x.Key * x.Value);
+    private decimal TotalFisicoEfectivo => conteo.Sum(x => x.Key * x.Value);
+    private decimal DescuadreEfectivo => TotalFisicoEfectivo - arqueo.SistTotalEfectivo;
 
-    private Arqueo datosPrevios = new Arqueo();
-
-    // Variables para el resumen detallado
-    private Dictionary<string, decimal> resumenEntradas = new();
-    private Dictionary<string, decimal> resumenSalidas = new();
-    private int cantEntradas = 0;
-    private int cantSalidas = 0;
-
-    // Estados de Control
-    private bool cargando = true;
     private bool procesando = false;
     private bool cierreExitoso = false;
-
-    private string mensajeError = "";
     private string usuarioId = "";
-
-    // Propiedades calculadas
-    private decimal SaldoTeorico => datosPrevios.SaldoInicial + datosPrevios.TotEntradas - datosPrevios.TotSalidas;
-    private decimal Descuadre => totalConteo - SaldoTeorico;
-
-    private string ColorDescuadre
-    {
-        get
-        {
-            if (Descuadre == 0) return "text-success";
-            if (Descuadre < 0) return "text-danger";
-            return "text-warning";
-        }
-    }
-
-    private string TextoDescuadre
-    {
-        get
-        {
-            if (Descuadre == 0) return "Perfecto";
-            if (Descuadre < 0) return "Faltante (Pérdida)";
-            return "Sobrante (Excedente)";
-        }
-    }
 
     protected override async Task OnInitializedAsync()
     {
         foreach (var kvp in denominaciones) conteo.Add(kvp.Key, 0);
-
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         usuarioId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
 
-        try
-        {
-            datosPrevios = await TesoreriaService.SimularCierreActualAsync();
-
-            // Precargamos los resúmenes para tenerlos listos al cerrar
-            resumenEntradas = await TesoreriaService.ObtenerResumenEntradasPorConceptoAsync();
-            resumenSalidas = await TesoreriaService.ObtenerResumenGastosPorConceptoAsync();
-            cantEntradas = await TesoreriaService.ContarEntradasPendientesAsync();
-            cantSalidas = await TesoreriaService.ContarGastosPendientesAsync();
-        }
-        finally
-        {
-            cargando = false;
-        }
+        arqueo = await TesoreriaService.SimularCierreActualAsync();
     }
 
     private void ActualizarConteo(int denom, object? valor)
     {
-        if (int.TryParse(valor?.ToString(), out int cantidad) && cantidad >= 0)
-        {
-            conteo[denom] = cantidad;
-        }
-        else
-        {
-            conteo[denom] = 0;
-        }
+        if (int.TryParse(valor?.ToString(), out int val) && val >= 0) conteo[denom] = val;
+        else conteo[denom] = 0;
     }
 
-    private async Task ConfirmarCierreDefinitivo()
+    private string GetColor(decimal val) => val == 0 ? "text-success" : (val < 0 ? "text-danger" : "text-warning");
+
+    private async Task CerrarCaja()
     {
-        if (procesando) return;
         procesando = true;
-        mensajeError = "";
+        arqueo.UsuarioId = usuarioId;
+        arqueo.FechaHora = DateTime.Now;
+        arqueo.FechaArqueo = DateTime.Today;
+
+        // Asignar valores físicos
+        arqueo.ConteoBilletesJson = JsonSerializer.Serialize(conteo);
+        arqueo.FisicoEfectivo = TotalFisicoEfectivo;
+        // arqueo.ReportadoNequi y ReportadoDaviplata ya están bindeados
 
         try
         {
-            var cierreFinal = new Arqueo
-            {
-                FechaHora = DateTime.Now,
-                FechaArqueo = DateTime.Today,
-                UsuarioId = usuarioId,
-                SaldoInicial = datosPrevios.SaldoInicial,
-                TotEntradas = datosPrevios.TotEntradas,
-                TotEntradasAnu = datosPrevios.TotEntradasAnu,
-                TotSalidas = datosPrevios.TotSalidas,
-                TotSalidasAnu = datosPrevios.TotSalidasAnu,
-                ConteoDinero = JsonSerializer.Serialize(conteo),
-                TotalConteoDinero = totalConteo,
-                CajaId = 1
-            };
-
-            await TesoreriaService.GuardarCierreCajaAsync(cierreFinal);
-
+            await TesoreriaService.GuardarCierreCajaAsync(arqueo);
             cierreExitoso = true;
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error crítico al cerrar: {ex.Message}";
-            procesando = false;
+            // Manejar error
+            Console.WriteLine(ex.Message);
         }
+        finally { procesando = false; }
     }
 }

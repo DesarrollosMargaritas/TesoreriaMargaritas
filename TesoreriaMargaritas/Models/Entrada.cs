@@ -18,6 +18,11 @@ namespace TesoreriaMargaritas.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal Monto { get; set; }
 
+        // --- NUEVO CAMPO ---
+        [Required(ErrorMessage = "Seleccione forma de pago")]
+        [MaxLength(20)]
+        public string FormaPago { get; set; } = "Efectivo"; // Efectivo, Nequi, Daviplata
+
         public DateTime Fecha { get; set; } = DateTime.Now;
 
         [Required]
@@ -26,9 +31,10 @@ namespace TesoreriaMargaritas.Models
 
         [ForeignKey("UsuarioId")]
         public Usuario? Usuario { get; set; }
-
-        // --- CORRECCIÓN: Agregamos el campo que causaba el error ---
+        [ForeignKey("ArqueoId")]
         public int? ArqueoId { get; set; }
+
+        public virtual Arqueo Arqueo { get; set; }
 
         public bool Anulado { get; set; } = false;
 
