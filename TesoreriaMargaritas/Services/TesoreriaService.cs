@@ -19,9 +19,9 @@ namespace TesoreriaMargaritas.Services
         public string Usuario { get; set; } = "";
         public bool Anulado { get; set; }
         public string Estado => Anulado ? "ANULADO" : "Exitoso";
+        public string Observaciones { get; set; } = "";
     }
 
-    // DTO para KPIs del Contador
     public class ContadorKPI
     {
         public decimal IngresosMes { get; set; }
@@ -40,15 +40,21 @@ namespace TesoreriaMargaritas.Services
         }
 
         // --- ENTRADAS ---
+        // MODIFICADO: Ahora solo trae los últimos 3 días por defecto para no saturar la vista
         public async Task<List<Entrada>> ObtenerEntradasAsync()
         {
-            return await _context.Entradas.Include(e => e.Usuario).OrderByDescending(e => e.Fecha).ToListAsync();
+            var fechaLimite = DateTime.Today.AddDays(-3); // Hace 3 días
+
+            return await _context.Entradas
+                .Include(e => e.Usuario)
+                .Where(e => e.Fecha >= fechaLimite) // Filtro de fecha
+                .OrderByDescending(e => e.Fecha)
+                .ToListAsync();
         }
 
         public async Task<decimal> ObtenerTotalEntradasHoyAsync()
         {
             var hoy = DateTime.Today;
-            // Solo sumamos las NO anuladas
             return await _context.Entradas.Where(e => e.Fecha >= hoy && !e.Anulado).SumAsync(e => e.Monto);
         }
 
@@ -114,9 +120,16 @@ namespace TesoreriaMargaritas.Services
             });
         }
 
+        // MODIFICADO: Ahora solo trae los últimos 3 días por defecto
         public async Task<List<Gasto>> ObtenerGastosAsync()
         {
-            return await _context.Gastos.Include(g => g.Usuario).OrderByDescending(g => g.Fecha).ToListAsync();
+            var fechaLimite = DateTime.Today.AddDays(-3); // Hace 3 días
+
+            return await _context.Gastos
+                .Include(g => g.Usuario)
+                .Where(g => g.Fecha >= fechaLimite) // Filtro de fecha
+                .OrderByDescending(g => g.Fecha)
+                .ToListAsync();
         }
 
         // --- CIERRE DE CAJA ---
@@ -137,11 +150,8 @@ namespace TesoreriaMargaritas.Services
         {
             var arqueo = new Arqueo();
 
-            // --- CAMBIO APLICADO: DÍAS INDEPENDIENTES ---
-            // Antes: arqueo.SaldoInicial = await ObtenerUltimoSaldoFinalAsync();
-            // Ahora:
+            // Días independientes: Saldo Inicial siempre 0
             arqueo.SaldoInicial = 0;
-            // --------------------------------------------
 
             var entradas = await _context.Entradas.Where(e => e.ArqueoId == null).ToListAsync();
             arqueo.TotEntradas = entradas.Where(e => !e.Anulado).Sum(e => e.Monto);
@@ -209,7 +219,6 @@ namespace TesoreriaMargaritas.Services
         }
 
         // --- REPORTES EXCEL ---
-
         public async Task<byte[]> GenerarReporteExcelCierreAsync(int arqueoId)
         {
             var arqueo = await _context.Arqueos.FindAsync(arqueoId);
@@ -261,7 +270,7 @@ namespace TesoreriaMargaritas.Services
             ws.Cell(row, 1).Value = "DETALLE DE ENTRADAS";
             row++;
 
-            ws.Cell(row, 1).Value = "ID"; ws.Cell(row, 2).Value = "Hora"; ws.Cell(row, 3).Value = "Concepto"; ws.Cell(row, 4).Value = "Monto";
+            ws.Cell(row, 1).Value = "ID"; ws.Cell(row, 2).Value = "Hora"; ws.Cell(row, 3).Value = "Concepto"; ws.Cell(row, 4).Value = "Observaciones"; ws.Cell(row, 5).Value = "Monto";
             row++;
 
             foreach (var e in entradas)
@@ -269,7 +278,8 @@ namespace TesoreriaMargaritas.Services
                 ws.Cell(row, 1).Value = e.Id;
                 ws.Cell(row, 2).Value = e.Fecha.ToString("HH:mm");
                 ws.Cell(row, 3).Value = e.Concepto;
-                ws.Cell(row, 4).Value = e.Monto; ws.Cell(row, 4).Style.NumberFormat.Format = moneyFormat;
+                ws.Cell(row, 4).Value = e.Observaciones;
+                ws.Cell(row, 5).Value = e.Monto; ws.Cell(row, 5).Style.NumberFormat.Format = moneyFormat;
                 row++;
             }
 
@@ -278,7 +288,7 @@ namespace TesoreriaMargaritas.Services
             ws.Cell(row, 1).Value = "DETALLE DE SALIDAS";
             row++;
 
-            ws.Cell(row, 1).Value = "Ref"; ws.Cell(row, 2).Value = "Hora"; ws.Cell(row, 3).Value = "Beneficiario"; ws.Cell(row, 4).Value = "Concepto"; ws.Cell(row, 5).Value = "Monto";
+            ws.Cell(row, 1).Value = "Ref"; ws.Cell(row, 2).Value = "Hora"; ws.Cell(row, 3).Value = "Beneficiario"; ws.Cell(row, 4).Value = "Concepto"; ws.Cell(row, 5).Value = "Observaciones"; ws.Cell(row, 6).Value = "Monto";
             row++;
 
             foreach (var g in gastos)
@@ -287,7 +297,8 @@ namespace TesoreriaMargaritas.Services
                 ws.Cell(row, 2).Value = g.Fecha.ToString("HH:mm");
                 ws.Cell(row, 3).Value = g.Beneficiario;
                 ws.Cell(row, 4).Value = g.Concepto;
-                ws.Cell(row, 5).Value = g.Monto; ws.Cell(row, 5).Style.NumberFormat.Format = moneyFormat;
+                ws.Cell(row, 5).Value = g.Observaciones;
+                ws.Cell(row, 6).Value = g.Monto; ws.Cell(row, 6).Style.NumberFormat.Format = moneyFormat;
                 row++;
             }
 
@@ -319,7 +330,8 @@ namespace TesoreriaMargaritas.Services
                     Detalle = "Ingreso",
                     Monto = e.Monto,
                     Usuario = e.UsuarioId,
-                    Anulado = e.Anulado
+                    Anulado = e.Anulado,
+                    Observaciones = e.Observaciones ?? ""
                 });
             }
 
@@ -335,7 +347,8 @@ namespace TesoreriaMargaritas.Services
                     Detalle = g.Beneficiario,
                     Monto = g.Monto,
                     Usuario = g.UsuarioId,
-                    Anulado = g.Anulado
+                    Anulado = g.Anulado,
+                    Observaciones = g.Observaciones ?? ""
                 });
             }
             return movimientos.OrderByDescending(m => m.Fecha).ToList();
@@ -351,7 +364,7 @@ namespace TesoreriaMargaritas.Services
             var moneyFormat = "$ #,##0.00";
 
             ws.Cell("A1").Value = "REPORTE DE MOVIMIENTOS";
-            ws.Range("A1:G1").Merge();
+            ws.Range("A1:H1").Merge();
 
             ws.Cell("A3").Value = "Desde:"; ws.Cell("B3").Value = inicio.ToShortDateString();
             ws.Cell("C3").Value = "Hasta:"; ws.Cell("D3").Value = fin.ToShortDateString();
@@ -363,9 +376,10 @@ namespace TesoreriaMargaritas.Services
             ws.Cell(row, 3).Value = "Referencia";
             ws.Cell(row, 4).Value = "Concepto";
             ws.Cell(row, 5).Value = "Beneficiario / Detalle";
-            ws.Cell(row, 6).Value = "Usuario";
-            ws.Cell(row, 7).Value = "Monto";
-            ws.Cell(row, 8).Value = "Estado";
+            ws.Cell(row, 6).Value = "Observaciones";
+            ws.Cell(row, 7).Value = "Usuario";
+            ws.Cell(row, 8).Value = "Monto";
+            ws.Cell(row, 9).Value = "Estado";
 
             row++;
 
@@ -376,14 +390,15 @@ namespace TesoreriaMargaritas.Services
                 ws.Cell(row, 3).Value = m.Referencia;
                 ws.Cell(row, 4).Value = m.Concepto;
                 ws.Cell(row, 5).Value = m.Detalle;
-                ws.Cell(row, 6).Value = m.Usuario;
-                ws.Cell(row, 7).Value = m.Monto;
-                ws.Cell(row, 7).Style.NumberFormat.Format = moneyFormat;
+                ws.Cell(row, 6).Value = m.Observaciones;
+                ws.Cell(row, 7).Value = m.Usuario;
+                ws.Cell(row, 8).Value = m.Monto;
+                ws.Cell(row, 8).Style.NumberFormat.Format = moneyFormat;
 
-                if (m.Tipo == "Entrada") ws.Cell(row, 7).Style.Font.SetFontColor(XLColor.Green);
-                else ws.Cell(row, 7).Style.Font.SetFontColor(XLColor.Red);
+                if (m.Tipo == "Entrada") ws.Cell(row, 8).Style.Font.SetFontColor(XLColor.Green);
+                else ws.Cell(row, 8).Style.Font.SetFontColor(XLColor.Red);
 
-                ws.Cell(row, 8).Value = m.Estado;
+                ws.Cell(row, 9).Value = m.Estado;
                 row++;
             }
 
@@ -430,8 +445,32 @@ namespace TesoreriaMargaritas.Services
             var gastos = await _context.Gastos.Include(g => g.Usuario).Where(g => g.ArqueoId == null).ToListAsync();
 
             var list = new List<TransaccionDTO>();
-            foreach (var e in entradas) list.Add(new TransaccionDTO { Id = e.Id, Fecha = e.Fecha, Tipo = "Entrada", Referencia = $"ENT-{e.Id}", Concepto = e.Concepto, Detalle = "Ingreso", Monto = e.Monto, Usuario = e.UsuarioId, Anulado = e.Anulado });
-            foreach (var g in gastos) list.Add(new TransaccionDTO { Id = g.Id, Fecha = g.Fecha, Tipo = "Salida", Referencia = $"{g.Prefijo}-{g.Consecutivo}", Concepto = g.Concepto, Detalle = g.Beneficiario, Monto = g.Monto, Usuario = g.UsuarioId, Anulado = g.Anulado });
+            foreach (var e in entradas) list.Add(new TransaccionDTO
+            {
+                Id = e.Id,
+                Fecha = e.Fecha,
+                Tipo = "Entrada",
+                Referencia = $"ENT-{e.Id}",
+                Concepto = e.Concepto,
+                Detalle = "Ingreso",
+                Monto = e.Monto,
+                Usuario = e.UsuarioId,
+                Anulado = e.Anulado,
+                Observaciones = e.Observaciones ?? ""
+            });
+            foreach (var g in gastos) list.Add(new TransaccionDTO
+            {
+                Id = g.Id,
+                Fecha = g.Fecha,
+                Tipo = "Salida",
+                Referencia = $"{g.Prefijo}-{g.Consecutivo}",
+                Concepto = g.Concepto,
+                Detalle = g.Beneficiario,
+                Monto = g.Monto,
+                Usuario = g.UsuarioId,
+                Anulado = g.Anulado,
+                Observaciones = g.Observaciones ?? ""
+            });
 
             return list.OrderByDescending(x => x.Fecha).ToList();
         }

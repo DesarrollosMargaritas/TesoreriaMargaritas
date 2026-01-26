@@ -15,7 +15,8 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2><i class="bi bi-cart-x text-danger"></i> Registro de Gastos y Salidas</h2>
-        <a href="/tesorero" class="btn btn-outline-secondary">
+        <!-- Botón Volver Dinámico -->
+        <a href="@rutaVolver" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Volver al Panel
         </a>
     </div>
@@ -58,22 +59,35 @@
                             <ValidationMessage For="@(() => nuevoGasto.Concepto)" />
                         </div>
 
-                        <!-- 2. BENEFICIARIO (Texto Libre Siempre) -->
+                        <!-- 2. BENEFICIARIO (Dinámico) -->
                         <div class="mb-3">
-                            <label class="form-label">Beneficiario</label>
-                            <!-- La clase text-uppercase visualmente lo hace mayúscula, y en C# lo forzamos al guardar -->
-                            <InputText @bind-Value="nuevoGasto.Beneficiario" class="form-control text-uppercase" placeholder="NOMBRE PERSONA / EMPRESA" />
+                            <label class="form-label">Beneficiario (@labelBeneficiario)</label>
+
+                            @if (esBeneficiarioLibre)
+                            {
+                                <InputText @bind-Value="nuevoGasto.Beneficiario" class="form-control text-uppercase" placeholder="NOMBRE PERSONA / EMPRESA" />
+                            }
+                            else
+                            {
+                                <input list="listaBeneficiarios" @bind="nuevoGasto.Beneficiario" class="form-control" placeholder="Escriba para buscar..." />
+                                <datalist id="listaBeneficiarios">
+                                    @foreach (var item in listaOpcionesBeneficiarios)
+                                    {
+                                        <option value="@item"></option>
+                                    }
+                                </datalist>
+                            }
                             <ValidationMessage For="@(() => nuevoGasto.Beneficiario)" />
                         </div>
 
                         <div class="row">
-                            <!-- 3. PREFIJO (Auto o Manual) -->
+                            <!-- 3. PREFIJO -->
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Prefijo</label>
                                 <InputText @bind-Value="nuevoGasto.Prefijo" class="form-control text-uppercase" disabled="@esPrefijoFijo" />
                             </div>
 
-                            <!-- 4. CONSECUTIVO (Auto o Manual) -->
+                            <!-- 4. CONSECUTIVO -->
                             <div class="col-md-8 mb-3">
                                 <label class="form-label">Consecutivo</label>
                                 @if (esConsecutivoManual)
@@ -129,17 +143,18 @@
                                     <th>Ref</th>
                                     <th>Concepto</th>
                                     <th>Beneficiario</th>
+                                    <th>Obs.</th> <!-- Columna Nueva -->
                                     <th class="text-end">Monto</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @if (listaGastos == null)
                                 {
-                                    <tr><td colspan="5" class="text-center p-3">Cargando...</td></tr>
+                                    <tr><td colspan="6" class="text-center p-3">Cargando...</td></tr>
                                 }
                                 else if (!listaGastos.Any())
                                 {
-                                    <tr><td colspan="5" class="text-center p-3 text-muted">Sin registros.</td></tr>
+                                    <tr><td colspan="6" class="text-center p-3 text-muted">Sin registros.</td></tr>
                                 }
                                 else
                                 {
@@ -149,7 +164,14 @@
                                             <td>@g.Fecha.ToString("dd/MM HH:mm")</td>
                                             <td><span class="badge bg-light text-dark border">@g.Prefijo-@g.Consecutivo</span></td>
                                             <td>@g.Concepto</td>
-                                            <td class="text-truncate" style="max-width: 150px;" title="@g.Beneficiario">@g.Beneficiario</td>
+                                            <td class="text-truncate" style="max-width: 120px;" title="@g.Beneficiario">@g.Beneficiario</td>
+                                            <!-- Columna Observaciones -->
+                                            <td class="text-center">
+                                                @if (!string.IsNullOrEmpty(g.Observaciones))
+                                                {
+                                                    <i class="bi bi-card-text text-muted" title="@g.Observaciones" style="cursor: help;"></i>
+                                                }
+                                            </td>
                                             <td class="text-end fw-bold text-danger">@g.Monto.ToString("C0")</td>
                                         </tr>
                                     }
@@ -168,16 +190,19 @@
     private Gasto nuevoGasto { get; set; } = new Gasto();
 
     private List<Gasto>? listaGastos;
+    private List<string> listaOpcionesBeneficiarios = new();
 
-    // Estados visuales simplificados
+    // Estados visuales
+    private bool esBeneficiarioLibre = true;
     private bool esPrefijoFijo = true;
     private bool esConsecutivoManual = false;
+    private string labelBeneficiario = "Libre";
 
     private bool mostrarExito = false;
     private string? mensajeError;
     private string usuarioIdLogueado = "";
+    private string rutaVolver = "/tesorero"; // Por defecto
 
-    // Propiedad para formato moneda
     private string MontoConFormato
     {
         get => nuevoGasto.Monto == 0 ? "" : nuevoGasto.Monto.ToString("N0");
@@ -195,10 +220,16 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        if (authState.User.Identity?.IsAuthenticated == true)
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
         {
-            usuarioIdLogueado = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+            usuarioIdLogueado = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
             nuevoGasto.UsuarioId = usuarioIdLogueado;
+
+            // Determinar ruta de retorno
+            if (user.IsInRole("Contador")) rutaVolver = "/contador";
+            else rutaVolver = "/tesorero";
         }
 
         await CargarDatos();
@@ -209,40 +240,66 @@
         listaGastos = await TesoreriaService.ObtenerGastosAsync();
     }
 
-    // Lógica simplificada: Solo configura prefijos, ya no carga listas externas
-    private void CambioConcepto(string concepto)
+    private async void CambioConcepto(string concepto)
     {
         nuevoGasto.Concepto = concepto;
+        nuevoGasto.Beneficiario = "";
+        listaOpcionesBeneficiarios.Clear();
 
         switch (concepto)
         {
             case "Gasto":
+                esBeneficiarioLibre = true;
+                labelBeneficiario = "Libre";
                 nuevoGasto.Prefijo = "GAP";
                 esPrefijoFijo = true;
-                esConsecutivoManual = false; // Auto
+                esConsecutivoManual = false;
                 break;
 
             case "Facturas":
-                nuevoGasto.Prefijo = ""; // Libre
+                esBeneficiarioLibre = false;
+                labelBeneficiario = "Buscar Proveedor";
+                await CargarProveedores();
+                nuevoGasto.Prefijo = "";
                 esPrefijoFijo = false;
-                esConsecutivoManual = true; // Manual
+                esConsecutivoManual = true;
                 break;
 
             case "Simplificados":
+                esBeneficiarioLibre = false;
+                labelBeneficiario = "Buscar Proveedor";
+                await CargarProveedores();
                 nuevoGasto.Prefijo = "SMP";
                 esPrefijoFijo = true;
-                esConsecutivoManual = false; // Auto
+                esConsecutivoManual = false;
                 break;
 
             case "Nominas":
+                esBeneficiarioLibre = false;
+                labelBeneficiario = "Buscar Vendedor";
+                await CargarVendedores();
                 nuevoGasto.Prefijo = "NMP";
                 esPrefijoFijo = true;
-                esConsecutivoManual = false; // Auto
+                esConsecutivoManual = false;
                 break;
 
             default:
+                esBeneficiarioLibre = true;
                 break;
         }
+        StateHasChanged();
+    }
+
+    private async Task CargarProveedores()
+    {
+        var proveedores = await TesoreriaService.ObtenerTodosProveedoresAsync();
+        listaOpcionesBeneficiarios = proveedores.Select(p => p.NOMPROVEEDOR).ToList();
+    }
+
+    private async Task CargarVendedores()
+    {
+        var vendedores = await TesoreriaService.ObtenerVendedoresAsync();
+        listaOpcionesBeneficiarios = vendedores.Select(v => v.NOMVENDEDOR).ToList();
     }
 
     private async Task GuardarGasto()
@@ -262,26 +319,21 @@
             return;
         }
 
-        // Forzar Mayúsculas siempre
-        nuevoGasto.Beneficiario = nuevoGasto.Beneficiario.ToUpper();
-        if (!string.IsNullOrEmpty(nuevoGasto.Prefijo))
-        {
-            nuevoGasto.Prefijo = nuevoGasto.Prefijo.ToUpper();
-        }
+        if (esBeneficiarioLibre) nuevoGasto.Beneficiario = nuevoGasto.Beneficiario.ToUpper();
+        if (!esPrefijoFijo) nuevoGasto.Prefijo = nuevoGasto.Prefijo.ToUpper();
 
         try
         {
             nuevoGasto.UsuarioId = usuarioIdLogueado;
-            // Si la fecha viene vacía o es minvalue, poner la actual
-            if (nuevoGasto.Fecha == DateTime.MinValue) nuevoGasto.Fecha = DateTime.Now;
+            // Si la fecha es por defecto (año 1), ponemos hoy.
+            // Si el usuario no la tocó, ya viene con DateTime.Now por el constructor, pero aseguramos.
+            if (nuevoGasto.Fecha.Year < 2000) nuevoGasto.Fecha = DateTime.Now;
 
             await TesoreriaService.RegistrarGastoAsync(nuevoGasto);
 
             mostrarExito = true;
-
-            // Reiniciar formulario
             nuevoGasto = new Gasto { UsuarioId = usuarioIdLogueado };
-            CambioConcepto(""); // Resetear estados
+            CambioConcepto("");
 
             await CargarDatos();
         }
